@@ -1,0 +1,42 @@
+[
+  {
+    "id": "portainer",
+    "name": "Portainer",
+    "category": "Infra",
+    "url": "https://portainer.marshmallowmc.com",
+    "note": "Container management — deep link only, per the plan doc."
+  },
+  {
+    "id": "npm",
+    "name": "Nginx Proxy Manager",
+    "category": "Infra",
+    "url": "https://npm.marshmallowmc.com",
+    "note": "Reverse proxy admin — deep link only."
+  },
+  {
+    "id": "pihole",
+    "name": "Pi-hole",
+    "category": "Infra",
+    "url": "https://pihole.marshmallowmc.com/admin",
+    "note": "Native stats tile planned for Phase 5; link-through for now."
+  },
+  {
+    "id": "tandoor",
+    "name": "Tandoor",
+    "category": "Media",
+    "url": "https://tandoor.marshmallowmc.com"
+  },
+  {
+    "id": "jellyfin",
+    "name": "Jellyfin",
+    "category": "Media",
+    "url": "https://jellyfin.marshmallowmc.com"
+  },
+  {
+    "id": "minecraft",
+    "name": "Minecraft Server",
+    "category": "Game",
+    "url": "https://portainer.marshmallowmc.com",
+    "note": "On/off + live status lands in Phase 2 — plain link for now."
+  }
+]

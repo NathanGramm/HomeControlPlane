@@ -1,0 +1,22 @@
+# Add this service to whatever compose file (or Portainer stack) already
+# runs the rest of your containers. It doesn't need its own network beyond
+# what NPM already uses to reach your other services.
+#
+# The Docker socket is mounted read-only: this container can list containers
+# and read their stats, but cannot start, stop, or otherwise control them.
+# (Read-only intentionally — Phase 1 is vitals only. Phase 2's Minecraft
+# on/off control will need a writable socket mount or a scoped Docker API
+# proxy in front of it; revisit this line when you get there.)
+
+services:
+  home-control-plane:
+    build: ./home-control-plane   # or push an image and reference it here
+    container_name: home-control-plane
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - PORT=3000
+    # No ports: published here — reach it only through Nginx Proxy Manager,
+    # proxying dash.marshmallowmc.com to home-control-plane:3000 on your
+    # Docker network, exactly like your other services.

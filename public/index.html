@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home Control Plane</title>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="page">
+    <header>
+      <span class="eyebrow">dash.marshmallowmc.com</span>
+      <h1>Home Control Plane</h1>
+    </header>
+
+    <section class="vitals">
+      <button class="vital-card" id="cpu-card" aria-expanded="false">
+        <div class="vital-head">
+          <span class="vital-label">CPU</span>
+          <span class="vital-pct" id="cpu-pct">&ndash;</span>
+        </div>
+        <div class="meter"><div class="meter-fill" id="cpu-fill"></div></div>
+        <div class="vital-hint">click for per-core</div>
+        <div class="core-grid" id="core-grid" hidden></div>
+      </button>
+
+      <button class="vital-card" id="ram-card" aria-expanded="false">
+        <div class="vital-head">
+          <span class="vital-label">RAM</span>
+          <span class="vital-pct" id="ram-pct">&ndash;</span>
+        </div>
+        <div class="meter"><div class="meter-fill" id="ram-fill"></div></div>
+        <div class="vital-hint" id="ram-hint">click for breakdown</div>
+        <div class="container-list" id="container-list" hidden></div>
+      </button>
+    </section>
+
+    <section>
+      <h2 class="section-title">Services</h2>
+      <div class="tile-grid" id="tile-grid">
+        <p class="loading">Loading services&hellip;</p>
+      </div>
+    </section>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
