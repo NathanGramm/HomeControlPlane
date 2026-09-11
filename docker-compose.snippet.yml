@@ -10,7 +10,7 @@
 
 services:
   home-control-plane:
-    build: ./home-control-plane   # or push an image and reference it here
+    build: .   # or push an image and reference it here
     container_name: home-control-plane
     restart: unless-stopped
     volumes:
