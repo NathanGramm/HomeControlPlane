@@ -17,20 +17,20 @@
     "id": "pihole",
     "name": "Pi-hole",
     "category": "Infra",
-    "url": "https://pihole.marshmallowmc.com/admin",
+    "url": "https://dns.marshmallowmc.com/admin",
     "note": "Native stats tile planned for Phase 5; link-through for now."
   },
   {
     "id": "tandoor",
     "name": "Tandoor",
     "category": "Media",
-    "url": "https://tandoor.marshmallowmc.com"
+    "url": "https://recipes.marshmallowmc.com"
   },
   {
     "id": "jellyfin",
     "name": "Jellyfin",
     "category": "Media",
-    "url": "https://jellyfin.marshmallowmc.com"
+    "url": "https://media.marshmallowmc.com"
   },
   {
     "id": "minecraft",
