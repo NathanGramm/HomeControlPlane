@@ -27,14 +27,12 @@ docker-compose.snippet.yml
 1. **Edit `server/config/services.json`** — the URLs in there are placeholders
    (`portainer.marshmallowmc.com`, etc.). Point each one at your actual Pi-hole
    local DNS hostnames.
-2. **Minecraft is still bare-metal**, run by `minecraft.service` (systemd)
-   via a `screen` session, not a container — so `MINECRAFT_CONTAINER_NAME`
-   in `docker-compose.snippet.yml` won't match anything yet, and start/stop
-   stays disabled in the UI until that changes (containerizing it is the
-   plan — see below). The live join-status ping works today regardless:
-   `MINECRAFT_HOST=host.docker.internal` reaches the Docker host itself, and
-   `MINECRAFT_PORT=25564` is the real port from the `_minecraft._tcp` SRV
-   record (not Minecraft's 25565 default).
+2. **Minecraft runs as the `gtnh-minecraft` container** (see "Minecraft now
+   runs in a container" below) — `MINECRAFT_CONTAINER_NAME`/`MINECRAFT_HOST`
+   already point at it by name over the shared compose network, and
+   `MINECRAFT_PORT=25564` matches `server.properties`' actual `server-port`
+   (not Minecraft's 25565 default). Start/stop and live status both work
+   from the dashboard.
 3. **NPM proxy host** — unlike a container-network setup, NPM here reaches
    every other service (Jellyfin, Tandoor, Pi-hole, homepage) at
    `<host-ip>:<published-port>`, not by container name — so
@@ -107,14 +105,15 @@ docker compose up -d --build home-control-plane
   throwing, and start/stop return a clear 404 rather than a 500.
 - **The join-status ping is independent of container discovery on
   purpose.** `GET /api/minecraft/status` always pings the real Minecraft
-  port, whether or not a matching container exists — that's what makes the
-  status pill accurate *today*, against the current bare-metal server,
-  before any containerization happens. Only start/stop need a container to
-  act on; the frontend disables that button (labeled "Not containerized
-  yet") when `container.found` is false, without hiding the real online/
-  offline state.
+  port, whether or not a matching container exists. This is what made the
+  status pill accurate even before Minecraft was containerized (see
+  below) — it kept working against the bare-metal server with no code
+  changes needed once the container replaced it. Only start/stop need a
+  container to act on; the frontend disables that button (labeled "Not
+  containerized yet") when `container.found` is false, without hiding the
+  real online/offline state.
 
-## Moving Minecraft into a container (in progress)
+## Minecraft now runs in a container
 
 The plan is to replace `minecraft.service` with a proper container so
 start/stop can go through `docker-socket-proxy` like everything else,
@@ -165,37 +164,44 @@ retyping its ~30 `--add-opens` flags, so it can't drift from it later.
    `gtnh-minecraft`'s port mapping and `home-control-plane`'s
    `MINECRAFT_PORT` use 25564 accordingly.
 
-The one placeholder still left on purpose: `RCON_PASSWORD` — pick a real
-value before deploying (it's never published outside the Docker network,
-so this is about not leaving a known string on an internal service, not
-about internet exposure).
+**Status: migrated and confirmed working**, joinable at both the LAN IP
+(`192.168.4.20:25564`) and `marshmallowmc.com`. `minecraft.service` is
+stopped and disabled; `gtnh-minecraft` is the only thing serving the port
+now.
 
-### Migration steps
+Rollback path, if it's ever needed again: `docker compose stop
+gtnh-minecraft`, then `sudo systemctl enable --now minecraft.service`.
+Nothing on disk was moved during the migration, only read from, so this is
+safe to fall back to.
 
-1. **Back up first, unconditionally**: `sudo systemctl stop minecraft.service`,
-   then `tar czf ~/GTNHServer-backup-$(date +%Y%m%d).tar.gz -C ~ GTNHServer`
-   somewhere off this disk if possible. Don't skip this — everything below
-   assumes you can undo it.
-2. **Prevent the old and new mechanisms from fighting over the same port**:
-   `sudo systemctl disable --now minecraft.service` (disable, not just
-   stop, so a reboot doesn't bring the bare-metal version back up
-   alongside the container).
-3. Set a real `RCON_PASSWORD` in `docker-compose.snippet.yml` in place of
-   the placeholder.
-4. `docker compose up -d gtnh-minecraft` and watch it come up:
-   `docker logs -f gtnh-minecraft`. Expect normal GTNH startup log lines
-   (Forge, mod loading, world load) — the same output you'd see from the
-   `screen` session, just via `docker logs` instead.
-5. Confirm from another machine that you can actually join (whitelist
-   still enforced, same world state as before stopping the old service).
-6. Redeploy `home-control-plane` (its env vars already point at
-   `gtnh-minecraft:25564`), then confirm the dashboard's Minecraft card
-   shows "online" with the right player count, and that Stop Server →
-   Start Server both work from the UI.
-7. **Rollback path if anything looks wrong**: `docker compose stop
-   gtnh-minecraft`, then `sudo systemctl enable --now minecraft.service`.
-   Nothing on disk was moved or deleted, only read from, so this is safe
-   to do at any point before you're confident in the container.
+### Incident during the first boot: a month-old stuck `level.dat`
+
+The first time the container came up, it looked stuck — the dashboard
+showed "container up, world not joinable," and direct connection attempts
+failed too. The actual cause turned out to be unrelated to
+containerization at all: `~/GTNHServer/World/level.dat` was 0 bytes with a
+timestamp from **Aug 15** (`level.dat_old`, 213KB and fully valid, was one
+minute older) — the original bare-metal server had apparently crashed
+mid-save on Aug 15 and never recovered. Forge's own fallback logic
+correctly found and validated `level.dat_old`, but then parked at an
+interactive "Run `/fml confirm` to proceed" safety prompt, waiting for a
+human at a console that doesn't exist under systemd or in a container —
+so it had likely been silently hung in that exact state for about a
+month, both before and after this migration. Fixed by adding
+`-Dfml.queryResult=confirm` to `JVM_OPTS` to auto-accept that prompt,
+since headless operation can never answer it interactively anyway.
+Real data loss from this: about one minute of world metadata (time,
+weather, spawn) — chunk/region files are separate files and were
+untouched.
+
+**Two follow-ups worth doing, neither urgent:**
+- Confirm `RCON_PASSWORD` in `docker-compose.snippet.yml` got changed from
+  the placeholder before this went live.
+- The automated backups in `~/GTNHServer/backups/` stop cold after Aug 10
+  — five days before the crash above. Worth finding out why (a cron job
+  died? a mod stopped triggering?) so there's a real safety net next time,
+  rather than relying on `level.dat_old` being lucky enough to only be a
+  minute stale.
 
 Separately: `free -h` on the host showed ~1.2Gi free / ~3.7Gi "available"
 out of 11Gi total, with the JVM alone already asking for 6G — that's
