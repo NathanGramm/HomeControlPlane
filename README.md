@@ -143,8 +143,67 @@ programmatic stop instead of simulating a keystroke.
 
 This is a live server with real world data — not attempting it without a
 concrete plan for preserving the world/mods/config and a tested rollback.
-Blocked on: the contents of `~/GTNHServer` (jar name, `java9args.txt`,
-world/mods folder layout), and the Java version currently in use.
+
+**Confirmed:** Java 17.0.20 (matches GTNH 2.8.0's Java 17 build), server jar
+is `lwjgl3ify-forgePatches.jar`, and everything — world, mods, config,
+whitelist/ops/bans, `server.properties` — lives flat under
+`~/GTNHServer`. The `gtnh-minecraft` service in
+`docker-compose.snippet.yml` bind-mounts that directory as `/data` as-is
+(no copying) and uses `TYPE=CUSTOM` with `JVM_OPTS=-Dfml.readTimeout=180
+@java9args.txt` — reusing the existing args file by reference rather than
+retyping its ~30 `--add-opens` flags, so it can't drift from it later.
+
+**Both blocking values are now confirmed** and filled into
+`docker-compose.snippet.yml`:
+
+1. **`UID`/`GID`** — `id ncgramm` on the host returned `uid=1000, gid=1000`,
+   matching what's set. (`server.properties` is mode `600`, owner-only —
+   this is why a UID mismatch would have mattered.)
+2. **The real internal port is 25564, not Minecraft's 25565 default** —
+   `server.properties` already has `server-port=25564` set explicitly, the
+   same port your `_minecraft._tcp` SRV record publishes externally. Both
+   `gtnh-minecraft`'s port mapping and `home-control-plane`'s
+   `MINECRAFT_PORT` use 25564 accordingly.
+
+The one placeholder still left on purpose: `RCON_PASSWORD` — pick a real
+value before deploying (it's never published outside the Docker network,
+so this is about not leaving a known string on an internal service, not
+about internet exposure).
+
+### Migration steps
+
+1. **Back up first, unconditionally**: `sudo systemctl stop minecraft.service`,
+   then `tar czf ~/GTNHServer-backup-$(date +%Y%m%d).tar.gz -C ~ GTNHServer`
+   somewhere off this disk if possible. Don't skip this — everything below
+   assumes you can undo it.
+2. **Prevent the old and new mechanisms from fighting over the same port**:
+   `sudo systemctl disable --now minecraft.service` (disable, not just
+   stop, so a reboot doesn't bring the bare-metal version back up
+   alongside the container).
+3. Set a real `RCON_PASSWORD` in `docker-compose.snippet.yml` in place of
+   the placeholder.
+4. `docker compose up -d gtnh-minecraft` and watch it come up:
+   `docker logs -f gtnh-minecraft`. Expect normal GTNH startup log lines
+   (Forge, mod loading, world load) — the same output you'd see from the
+   `screen` session, just via `docker logs` instead.
+5. Confirm from another machine that you can actually join (whitelist
+   still enforced, same world state as before stopping the old service).
+6. Redeploy `home-control-plane` (its env vars already point at
+   `gtnh-minecraft:25564`), then confirm the dashboard's Minecraft card
+   shows "online" with the right player count, and that Stop Server →
+   Start Server both work from the UI.
+7. **Rollback path if anything looks wrong**: `docker compose stop
+   gtnh-minecraft`, then `sudo systemctl enable --now minecraft.service`.
+   Nothing on disk was moved or deleted, only read from, so this is safe
+   to do at any point before you're confident in the container.
+
+Separately: `free -h` on the host showed ~1.2Gi free / ~3.7Gi "available"
+out of 11Gi total, with the JVM alone already asking for 6G — that's
+tight, and matches your instinct about needing more RAM. Containerizing
+doesn't meaningfully change that math (bind mounts have no memory
+overhead; the container adds a small fixed cost for its own runtime, not
+per-GB-of-world), so it's worth treating as a separate, real constraint
+either way.
 
 ## A build note from this session
 

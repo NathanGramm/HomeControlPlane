@@ -43,18 +43,48 @@ services:
       - docker-socket-proxy
     ports:
       - "3001:3000"   # NPM proxies dash.marshmallowmc.com -> <host-ip>:3001
-    extra_hosts:
-      - "host.docker.internal:host-gateway"   # lets the container reach the host's own ports/processes
     environment:
       - PORT=3000
       - DOCKER_HOST=tcp://docker-socket-proxy:2375
-      # Minecraft is still a bare-metal process under systemd (see
-      # minecraft.service), not a container yet — MINECRAFT_CONTAINER_NAME
-      # intentionally won't match anything until that changes, so start/stop
-      # stays disabled in the UI. The live join-status ping works today
-      # regardless: host.docker.internal reaches the Docker host itself
-      # (this machine), and 25564 is the real port from your
-      # _minecraft._tcp SRV record — not Minecraft's 25565 default.
-      - MINECRAFT_CONTAINER_NAME=minecraft-server
-      - MINECRAFT_HOST=host.docker.internal
+      # Once `gtnh-minecraft` (below) is up, MINECRAFT_HOST is just its
+      # container name — they land on the same default network because
+      # they're defined in this same compose file, so dashboard-to-container
+      # traffic never touches the published port at all. Confirmed via
+      # server.properties: server-port is already set to 25564 (not
+      # Minecraft's 25565 default), matching the port your SRV record
+      # publishes externally — so it's the same 25564 on both sides here.
+      - MINECRAFT_CONTAINER_NAME=gtnh-minecraft
+      - MINECRAFT_HOST=gtnh-minecraft
       - MINECRAFT_PORT=25564
+
+  # GTNH server — see README's "Moving Minecraft into a container" section
+  # before touching this on the real host. Bind-mounts the *existing*
+  # ~/GTNHServer directory as-is (world, mods, config, whitelist, ops,
+  # server.properties, the works) rather than copying anything, so there's
+  # exactly one copy of your world at all times.
+  gtnh-minecraft:
+    image: itzg/minecraft-server:java17
+    container_name: gtnh-minecraft
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    stop_grace_period: 180s   # must exceed STOP_DURATION below, or Compose SIGKILLs mid-save
+    ports:
+      - "25564:25564"   # matches server.properties' server-port=25564 — no port-forward/SRV change needed
+    volumes:
+      - /home/ncgramm/GTNHServer:/data
+    environment:
+      - EULA=TRUE
+      - TYPE=CUSTOM
+      - CUSTOM_SERVER=/data/lwjgl3ify-forgePatches.jar
+      - JVM_OPTS=-Dfml.readTimeout=180 @java9args.txt
+      - EXTRA_ARGS=nogui
+      - INIT_MEMORY=6G
+      - MAX_MEMORY=6G
+      - OVERRIDE_SERVER_PROPERTIES=false   # don't let this image regenerate your existing server.properties
+      - STOP_DURATION=120                  # seconds to wait for a clean save before giving up
+      - ENABLE_RCON=true
+      - RCON_PASSWORD=CHANGE_ME_before_deploying   # internal-only: no RCON port is published below
+      # Confirmed via `id ncgramm` on the host: uid=1000, gid=1000.
+      - UID=1000
+      - GID=1000
