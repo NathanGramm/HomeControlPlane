@@ -3,6 +3,7 @@ const express = require('express');
 
 const systemRoutes = require('./routes/system');
 const serviceRoutes = require('./routes/services');
+const minecraftRoutes = require('./routes/minecraft');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -13,6 +14,7 @@ const PORT = process.env.PORT || 3000;
 
 app.use('/api/system', systemRoutes);
 app.use('/api/services', serviceRoutes);
+app.use('/api/minecraft', minecraftRoutes);
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
 

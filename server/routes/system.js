@@ -1,19 +1,12 @@
 const express = require('express');
 const si = require('systeminformation');
+const docker = require('../docker');
 
 const router = express.Router();
 
-// Talks to the Docker socket mounted into this container (read-only).
-// If dockerode isn't installed, or the socket isn't reachable (e.g. running
-// this outside Docker for local dev), container stats are simply omitted
-// rather than crashing the endpoint.
-let docker = null;
-try {
-  const Docker = require('dockerode');
-  docker = new Docker({ socketPath: '/var/run/docker.sock' });
-} catch (err) {
-  console.warn('dockerode not available, per-container RAM breakdown disabled:', err.message);
-}
+// docker is the shared client from ../docker.js (talks to the
+// docker-socket-proxy). If it's unavailable, container stats are simply
+// omitted rather than crashing the endpoint.
 
 // GET /api/system/cpu -> { overallPct, cores: [pct, ...], updatedAt }
 router.get('/cpu', async (req, res) => {

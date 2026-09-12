@@ -31,12 +31,5 @@
     "name": "Jellyfin",
     "category": "Media",
     "url": "https://media.marshmallowmc.com"
-  },
-  {
-    "id": "minecraft",
-    "name": "Minecraft Server",
-    "category": "Game",
-    "url": "https://portainer.marshmallowmc.com",
-    "note": "On/off + live status lands in Phase 2 — plain link for now."
   }
 ]

@@ -1,17 +1,20 @@
-# Home Control Plane — Phase 1
+# Home Control Plane — Phase 1 + 2
 
-Skeleton, service tiles, and CPU/RAM vitals. No login logic in this app on
-purpose — auth is handled one layer up, by Nginx Proxy Manager's basic auth
-in front of the container. This only ever expects to be reached through NPM,
-over Tailscale.
+Skeleton, service tiles, CPU/RAM vitals, and now Minecraft on/off + live
+status — the first "act, don't just link" feature. No login logic in this
+app on purpose — auth is handled one layer up, by Nginx Proxy Manager's
+basic auth in front of the container. This only ever expects to be reached
+through NPM, over Tailscale.
 
 ## What's here
 
 ```
 server/
   index.js              Express app, static file serving
+  docker.js              Shared dockerode client (talks to docker-socket-proxy)
   routes/system.js       GET /api/system/cpu, GET /api/system/ram
   routes/services.js     GET /api/services (reads config/services.json)
+  routes/minecraft.js    GET /api/minecraft/status, POST .../start, .../stop
   config/services.json   The tile list — edit this, not the code, to add/rename tiles
 public/
   index.html, styles.css, app.js   The dashboard itself (no build step, no framework)
@@ -24,10 +27,15 @@ docker-compose.snippet.yml
 1. **Edit `server/config/services.json`** — the URLs in there are placeholders
    (`portainer.marshmallowmc.com`, etc.). Point each one at your actual Pi-hole
    local DNS hostnames.
-2. **NPM proxy host** — create a new proxy host in Nginx Proxy Manager for
+2. **Edit the Minecraft env vars in `docker-compose.snippet.yml`** —
+   `MINECRAFT_CONTAINER_NAME` must match the actual container name shown in
+   Portainer, and `MINECRAFT_HOST`/`MINECRAFT_PORT` must point at where that
+   container is reachable for a server-list-ping (its Pi-hole hostname or
+   container name on the shared Docker network, and whatever port it exposes).
+3. **NPM proxy host** — create a new proxy host in Nginx Proxy Manager for
    `dash.marshmallowmc.com` → `home-control-plane:3000` (the container name and
    port from the compose snippet), with basic auth enabled on it.
-3. **Pi-hole** — add a local DNS record for `dash.marshmallowmc.com` pointing
+4. **Pi-hole** — add a local DNS record for `dash.marshmallowmc.com` pointing
    at your server, same pattern as your other services.
 
 ## Running it
@@ -65,22 +73,49 @@ docker compose up -d --build home-control-plane
   isn't installed), the breakdown is just omitted — the endpoint degrades
   instead of failing outright.
 
+## Notes on the Minecraft control (Phase 2)
+
+- **Docker access changed shape.** Phase 1 mounted the Docker socket
+  read-only, directly into this container. Phase 2 needed write access to
+  start/stop a container, and a writable raw socket mount grants control
+  over *every* container on the host, not just Minecraft — too much blast
+  radius for a bug or an exposed endpoint. Instead, `docker-compose.snippet.yml`
+  now adds a `docker-socket-proxy` container (Tecnativa's
+  `docker-socket-proxy` image) that holds the real socket and exposes only
+  list/inspect/start/stop over plain TCP on the internal Docker network.
+  `home-control-plane` talks to that proxy via `DOCKER_HOST`
+  (`server/docker.js`) and never sees the raw socket at all.
+- **"Running" isn't "joinable."** `GET /api/minecraft/status` checks two
+  independent things: the container's Docker state, and (only if that state
+  is `running`) an actual server-list-ping via `minecraft-server-util`,
+  since a Minecraft world can take a while to finish loading after the
+  container itself comes up. The frontend's "starting…" pill is that gap.
+- **`minecraft-server-util` is deprecated upstream** (the maintainer now
+  points people at the hosted `mcstatus.io` API instead). That's a bad fit
+  here on purpose — this dashboard is LAN-only and shouldn't be phoning an
+  external service every 5 seconds just to check your own server. The
+  server-list-ping protocol itself is old and stable, so the last published
+  version is pinned and used directly instead.
+- Every route degrades the same way Phase 1's did: if the Docker proxy is
+  unreachable, `/api/minecraft/status` reports "not found" instead of
+  throwing, and start/stop return a clear 404 rather than a 500.
+
 ## A build note from this session
 
-I wasn't able to `npm install` and run this end-to-end here — this
-sandbox's network egress doesn't reach the npm registry at all, for any
-package. I syntax-checked every file (`node --check`) and they're clean,
-and both `systeminformation` and `dockerode`'s APIs used here
-(`currentLoad()`, `mem()`, `listContainers()`, `container.stats()`) are
-their long-stable, documented surfaces — but you're the first real
-`npm install && npm start` this code will see. If something doesn't
-behave as expected, tell me what you're seeing and we'll fix it from there.
+Phase 1 shipped without a real `npm install` (this sandbox's network egress
+didn't reach the npm registry at the time). This session's egress *did*
+work, so Phase 2 was installed, syntax-checked, and exercised end-to-end
+against a small local stand-in for the Docker Engine API (list/start/stop
+over the same HTTP protocol `docker-socket-proxy` and `dockerode` actually
+speak) — confirmed the status/start/stop cycle, the "container up but
+world not joinable yet" state, and graceful fallback when the proxy is
+unreachable, all through the real UI in a browser. What's *not* verified
+here is the real Minecraft server-list-ping succeeding against an actual
+running world, since that needs a real server — worth a quick look once
+this is deployed and `MINECRAFT_HOST`/`MINECRAFT_PORT` point at the real
+thing.
 
-## Next: Phase 2
+## Next: Phase 3
 
-Minecraft on/off + live status. The `docker-compose.snippet.yml` mounts the
-Docker socket **read-only** on purpose — Phase 1 only ever reads. Starting
-and stopping a container needs a writable mount (or a scoped Docker API
-proxy in front of the raw socket, which is the safer option since a
-writable socket mount can do a lot more than start/stop one container) —
-worth deciding which approach before Phase 2 starts.
+Firefly III — stand up the container (+ MariaDB), then wire in read-only
+balance/transaction widgets via its REST API.

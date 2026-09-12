@@ -1,7 +1,7 @@
 {
   "name": "home-control-plane",
   "version": "0.1.0",
-  "description": "Phase 1: skeleton, service tiles, and CPU/RAM vitals for the home control plane dashboard.",
+  "description": "Phase 1+2: skeleton, service tiles, CPU/RAM vitals, and Minecraft on/off + live status.",
   "main": "server/index.js",
   "type": "commonjs",
   "scripts": {
@@ -11,6 +11,7 @@
   "dependencies": {
     "dockerode": "^4.0.2",
     "express": "^4.19.2",
+    "minecraft-server-util": "^5.4.4",
     "systeminformation": "^5.23.5"
   }
 }

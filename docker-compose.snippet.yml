@@ -1,22 +1,44 @@
-# Add this service to whatever compose file (or Portainer stack) already
-# runs the rest of your containers. It doesn't need its own network beyond
-# what NPM already uses to reach your other services.
+# Add these services to whatever compose file (or Portainer stack) already
+# runs the rest of your containers, so they land on the same Docker network
+# as home-control-plane and (for docker-socket-proxy) can see the daemon.
 #
-# The Docker socket is mounted read-only: this container can list containers
-# and read their stats, but cannot start, stop, or otherwise control them.
-# (Read-only intentionally — Phase 1 is vitals only. Phase 2's Minecraft
-# on/off control will need a writable socket mount or a scoped Docker API
-# proxy in front of it; revisit this line when you get there.)
+# Phase 2 change from Phase 1: home-control-plane no longer mounts the
+# Docker socket itself. Instead, docker-socket-proxy holds the real socket
+# and exposes only the specific calls the dashboard needs (list/inspect
+# containers, start, stop) over plain TCP on the internal network — nothing
+# else, and nothing published to the host. If the dashboard ever has a bug
+# or gets exposed, the blast radius is "start/stop this one container," not
+# "full Docker API access." See https://github.com/Tecnativa/docker-socket-proxy
+# for the full list of toggles if you want to expose anything more later.
 
 services:
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:latest
+    container_name: docker-socket-proxy
+    restart: unless-stopped
+    environment:
+      - CONTAINERS=1    # required for list/inspect, and for ALLOW_START/ALLOW_STOP below
+      - POST=0          # keep the blanket "allow any POST" gate closed...
+      - ALLOW_START=1   # ...and open only these two specific actions instead
+      - ALLOW_STOP=1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    # No ports published — reached only by home-control-plane, over the
+    # Docker network they share, at docker-socket-proxy:2375.
+
   home-control-plane:
     build: .   # or push an image and reference it here
     container_name: home-control-plane
     restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - docker-socket-proxy
     environment:
       - PORT=3000
+      - DOCKER_HOST=tcp://docker-socket-proxy:2375
+      # Placeholders — edit to match your actual setup before deploying:
+      - MINECRAFT_CONTAINER_NAME=minecraft-server
+      - MINECRAFT_HOST=minecraft.marshmallowmc.com
+      - MINECRAFT_PORT=25565
     # No ports: published here — reach it only through Nginx Proxy Manager,
     # proxying dash.marshmallowmc.com to home-control-plane:3000 on your
     # Docker network, exactly like your other services.
