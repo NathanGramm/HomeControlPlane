@@ -111,7 +111,7 @@ services:
       # Without that, mc-server-runner's graceful stop silently falls back
       # to typing "stop" into the console, which is slower and is what
       # triggered the forced-kill above.
-      - RCON_PASSWORD=CHANGE_ME_before_deploying   # internal-only: no RCON port is published below
+      - RCON_PASSWORD=***REMOVED***   # internal-only: no RCON port is published below
       # Confirmed via `id ncgramm` on the host: uid=1000, gid=1000.
       - UID=1000
       - GID=1000
