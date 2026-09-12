@@ -77,7 +77,13 @@ services:
       - EULA=TRUE
       - TYPE=CUSTOM
       - CUSTOM_SERVER=/data/lwjgl3ify-forgePatches.jar
-      - JVM_OPTS=-Dfml.readTimeout=180 @java9args.txt
+      # -Dfml.queryResult=confirm: auto-accepts FML's "backup level.dat is
+      # being used" prompt. That prompt normally waits for someone to type
+      # /fml confirm at an interactive console — which doesn't exist here
+      # — so without this flag a world that ever needs its level.dat
+      # fallback (e.g. after an unclean shutdown) hangs forever at startup
+      # instead of finishing boot.
+      - JVM_OPTS=-Dfml.readTimeout=180 -Dfml.queryResult=confirm @java9args.txt
       - EXTRA_ARGS=nogui
       - INIT_MEMORY=6G
       - MAX_MEMORY=6G
