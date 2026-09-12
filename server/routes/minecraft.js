@@ -18,6 +18,12 @@ const CONTAINER_NAME = process.env.MINECRAFT_CONTAINER_NAME || 'minecraft-server
 const MC_HOST = process.env.MINECRAFT_HOST || 'localhost';
 const MC_PORT = Number(process.env.MINECRAFT_PORT) || 25565;
 
+// True once the configured container actually exists — i.e. once Minecraft
+// has been containerized. Until then there's nothing for start/stop to
+// control, but the join-status ping below works either way: it's a plain
+// TCP server-list-ping, independent of how the process behind that port is
+// hosted (bare-metal + systemd today, a container later).
+
 async function findContainer() {
   if (!docker) return null;
   try {
@@ -53,11 +59,15 @@ async function pingServer() {
 }
 
 // GET /api/minecraft/status -> { container: {found, state}, server: {...}, updatedAt }
+//
+// container.found tells the frontend whether start/stop can do anything —
+// server.online is the real, independent answer to "can someone join right
+// now," fetched by ping regardless of container state so this stays useful
+// even before Minecraft is containerized.
 router.get('/status', async (req, res) => {
   try {
-    const containerInfo = await findContainer();
+    const [containerInfo, server] = await Promise.all([findContainer(), pingServer()]);
     const state = containerInfo ? containerInfo.State : 'not_found';
-    const server = state === 'running' ? await pingServer() : { online: false };
 
     res.json({
       container: { found: !!containerInfo, state },

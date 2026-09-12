@@ -106,32 +106,37 @@ function setPill(el, text, kind) {
 function renderMinecraft(data) {
   const { container, server } = data;
 
+  // The join-status ping is independent of container discovery, so this
+  // reflects reality even before Minecraft is containerized (today: a
+  // bare-metal process under systemd, which this dashboard can see but
+  // not yet control).
+  if (server && server.online) {
+    setPill(mcPill, 'online', 'good');
+    mcDetail.textContent = `${server.players}/${server.maxPlayers} players`;
+  } else if (container.state === 'running') {
+    setPill(mcPill, 'starting…', 'warn');
+    mcDetail.textContent = 'Container is up, world isn’t joinable yet.';
+  } else {
+    setPill(mcPill, 'offline', 'muted');
+    mcDetail.textContent = 'Not accepting connections right now.';
+  }
+
   if (!container.found) {
-    setPill(mcPill, 'not found', 'bad');
-    mcDetail.textContent = `No container matching MINECRAFT_CONTAINER_NAME was found.`;
     mcBtn.disabled = true;
-    mcBtn.textContent = 'Start Server';
+    mcBtn.textContent = 'Not containerized yet';
+    mcDetail.textContent += ' — start/stop needs Minecraft running as a container.';
     delete mcBtn.dataset.action;
     return;
   }
 
+  mcBtn.disabled = false;
   if (container.state === 'running') {
-    if (server && server.online) {
-      setPill(mcPill, 'online', 'good');
-      mcDetail.textContent = `${server.players}/${server.maxPlayers} players`;
-    } else {
-      setPill(mcPill, 'starting…', 'warn');
-      mcDetail.textContent = 'Container is up, world isn’t joinable yet.';
-    }
     mcBtn.textContent = 'Stop Server';
     mcBtn.dataset.action = 'stop';
   } else {
-    setPill(mcPill, 'offline', 'muted');
-    mcDetail.textContent = 'Container is stopped.';
     mcBtn.textContent = 'Start Server';
     mcBtn.dataset.action = 'start';
   }
-  mcBtn.disabled = false;
 }
 
 async function refreshMinecraft() {

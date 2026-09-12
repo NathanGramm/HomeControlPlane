@@ -1,6 +1,15 @@
 # Add these services to whatever compose file (or Portainer stack) already
-# runs the rest of your containers, so they land on the same Docker network
-# as home-control-plane and (for docker-socket-proxy) can see the daemon.
+# runs the rest of your containers.
+#
+# Networking note: unlike the docker-socket-proxy <-> home-control-plane
+# pair below (which share an implicit network because they're defined in
+# the same compose file), NPM doesn't reach your other services — Jellyfin,
+# Tandoor, Pi-hole, homepage — over a shared Docker network. It hits each
+# one at <host-ip>:<published-port>. home-control-plane follows that same
+# pattern here for consistency: publish a port, then point an NPM proxy
+# host at your server's LAN IP and that port. This is still LAN/Tailscale-only
+# — a published Docker port isn't reachable from the internet unless you
+# separately add a router port-forward for it, which you should not do here.
 #
 # Phase 2 change from Phase 1: home-control-plane no longer mounts the
 # Docker socket itself. Instead, docker-socket-proxy holds the real socket
@@ -32,13 +41,20 @@ services:
     restart: unless-stopped
     depends_on:
       - docker-socket-proxy
+    ports:
+      - "3001:3000"   # NPM proxies dash.marshmallowmc.com -> <host-ip>:3001
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # lets the container reach the host's own ports/processes
     environment:
       - PORT=3000
       - DOCKER_HOST=tcp://docker-socket-proxy:2375
-      # Placeholders — edit to match your actual setup before deploying:
+      # Minecraft is still a bare-metal process under systemd (see
+      # minecraft.service), not a container yet — MINECRAFT_CONTAINER_NAME
+      # intentionally won't match anything until that changes, so start/stop
+      # stays disabled in the UI. The live join-status ping works today
+      # regardless: host.docker.internal reaches the Docker host itself
+      # (this machine), and 25564 is the real port from your
+      # _minecraft._tcp SRV record — not Minecraft's 25565 default.
       - MINECRAFT_CONTAINER_NAME=minecraft-server
-      - MINECRAFT_HOST=minecraft.marshmallowmc.com
-      - MINECRAFT_PORT=25565
-    # No ports: published here — reach it only through Nginx Proxy Manager,
-    # proxying dash.marshmallowmc.com to home-control-plane:3000 on your
-    # Docker network, exactly like your other services.
+      - MINECRAFT_HOST=host.docker.internal
+      - MINECRAFT_PORT=25564
