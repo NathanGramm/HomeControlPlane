@@ -74,7 +74,7 @@ services:
     restart: unless-stopped
     stdin_open: true
     tty: true
-    stop_grace_period: 180s   # must exceed STOP_DURATION below, or Compose SIGKILLs mid-save
+    stop_grace_period: 600s   # must exceed STOP_DURATION below, or Compose SIGKILLs mid-save
     ports:
       - "25564:25564"   # matches server.properties' server-port=25564 — no port-forward/SRV change needed
     volumes:
@@ -94,8 +94,23 @@ services:
       - INIT_MEMORY=6G
       - MAX_MEMORY=6G
       - OVERRIDE_SERVER_PROPERTIES=false   # don't let this image regenerate your existing server.properties
-      - STOP_DURATION=120                  # seconds to wait for a clean save before giving up
+      # 120s wasn't enough for a real GTNH shutdown+save and caused a forced
+      # kill mid-stop (see README incident log). 480s leaves real headroom;
+      # stop_grace_period above must stay ahead of this.
+      - STOP_DURATION=480
       - ENABLE_RCON=true
+      # IMPORTANT: OVERRIDE_SERVER_PROPERTIES=false above means this env var
+      # alone does NOT actually enable RCON on the running server — the
+      # image only writes ENABLE_RCON/RCON_PASSWORD into server.properties
+      # when it's allowed to manage that file, which we've told it not to.
+      # server.properties (inherited from the old bare-metal setup, which
+      # never used RCON) must be edited directly, once, to match this value:
+      #   enable-rcon=true
+      #   rcon.port=25575
+      #   rcon.password=<same value as RCON_PASSWORD below>
+      # Without that, mc-server-runner's graceful stop silently falls back
+      # to typing "stop" into the console, which is slower and is what
+      # triggered the forced-kill above.
       - RCON_PASSWORD=CHANGE_ME_before_deploying   # internal-only: no RCON port is published below
       # Confirmed via `id ncgramm` on the host: uid=1000, gid=1000.
       - UID=1000

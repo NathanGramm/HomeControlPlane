@@ -195,13 +195,54 @@ weather, spawn) — chunk/region files are separate files and were
 untouched.
 
 **Two follow-ups worth doing, neither urgent:**
-- Confirm `RCON_PASSWORD` in `docker-compose.snippet.yml` got changed from
-  the placeholder before this went live.
 - The automated backups in `~/GTNHServer/backups/` stop cold after Aug 10
   — five days before the crash above. Worth finding out why (a cron job
   died? a mod stopped triggering?) so there's a real safety net next time,
   rather than relying on `level.dat_old` being lucky enough to only be a
   minute stale.
+- ~~Confirm `RCON_PASSWORD` got changed from the placeholder~~ — moot until
+  the incident below is resolved, since RCON isn't actually reachable yet
+  regardless of that value.
+
+### Incident 2: Stop Server force-killed the process after timing out
+
+First real Stop Server attempt from the dashboard failed in two
+compounding ways, caught from the container logs:
+
+1. **`docker-socket-proxy` was rejecting the stop request outright.**
+   `POST=0` was meant to keep the blanket "allow any write" gate closed
+   while `ALLOW_START`/`ALLOW_STOP` opened just those two actions — but
+   checking the proxy's actual `haproxy.cfg` rules showed the blanket
+   `POST` check runs *before* the action-specific `ALLOW_*` checks and
+   denies immediately if `POST` is false, so those two flags were dead
+   configuration. Fixed: `POST=1` (confirmed safe — every other write
+   action still has no matching `ALLOW_*` flag, so it's still denied by
+   the proxy's own catch-all rule).
+2. **With that fixed, the stop request reached the container, but then
+   timed out and got force-killed.** Logs showed `rcon-cli` failing
+   immediately (`exit status 1`) — `ENABLE_RCON=true`/`RCON_PASSWORD` in
+   the compose file don't actually do anything while
+   `OVERRIDE_SERVER_PROPERTIES=false`, since that's also what stops the
+   image from writing RCON settings into `server.properties`. The
+   original bare-metal setup never used RCON, so the file still has it
+   off. Without RCON, `mc-server-runner` fell back to typing `stop` into
+   the console — which is slower, and on this world didn't finish inside
+   `STOP_DURATION=120s`, so `mc-server-runner` force-killed the process at
+   the 2-minute mark. **Checked immediately after: no corruption this
+   time** (`level.dat` was fully written, its timestamp landing right at
+   the moment of the kill — the risky part of the save had already
+   completed). Fixed: `STOP_DURATION` raised to 480s / `stop_grace_period`
+   to 600s, and `server.properties` needs a one-time manual edit (can't be
+   done via env vars while `OVERRIDE_SERVER_PROPERTIES=false`) to actually
+   turn RCON on:
+   ```
+   enable-rcon=true
+   rcon.port=25575
+   rcon.password=<same value as RCON_PASSWORD in docker-compose.snippet.yml>
+   ```
+   Once that's live, `docker-socket-proxy` stop→RCON stop should be fast
+   and reliable, with the longer `STOP_DURATION` as a safety margin rather
+   than the primary mechanism.
 
 Separately: `free -h` on the host showed ~1.2Gi free / ~3.7Gi "available"
 out of 11Gi total, with the JVM alone already asking for 6G — that's
