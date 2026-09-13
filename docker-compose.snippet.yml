@@ -69,7 +69,7 @@ services:
       # create a Personal Access Token from its own UI — see README.
       # Leaving this blank/unset is fine: the dashboard just hides the
       # Finances section entirely until a real token is here.
-      - FIREFLY_API_TOKEN=
+      - FIREFLY_API_TOKEN=***REMOVED***
 
   # GTNH server — see README's "Moving Minecraft into a container" section
   # before touching this on the real host. Bind-mounts the *existing*
