@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 
 const FIREFLY_URL = process.env.FIREFLY_URL || 'http://firefly-app:8080';
-const FIREFLY_API_TOKEN = process.env.FIREFLY_API_TOKEN || '';
+const FIREFLY_API_TOKEN = process.env.FIREFLY_API_TOKEN || '***REMOVED***';
 
 async function fireflyFetch(path) {
   const res = await fetch(`${FIREFLY_URL}${path}`, {
