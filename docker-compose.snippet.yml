@@ -62,6 +62,14 @@ services:
       - MINECRAFT_CONTAINER_NAME=gtnh-minecraft
       - MINECRAFT_HOST=gtnh-minecraft
       - MINECRAFT_PORT=25564
+      # Same reasoning as MINECRAFT_HOST above — firefly-app's container
+      # name works directly since they share this compose file's network.
+      - FIREFLY_URL=http://firefly-app:8080
+      # Can't be set until Firefly exists and you've logged in once to
+      # create a Personal Access Token from its own UI — see README.
+      # Leaving this blank/unset is fine: the dashboard just hides the
+      # Finances section entirely until a real token is here.
+      - FIREFLY_API_TOKEN=
 
   # GTNH server — see README's "Moving Minecraft into a container" section
   # before touching this on the real host. Bind-mounts the *existing*
@@ -115,3 +123,66 @@ services:
       # Confirmed via `id ncgramm` on the host: uid=1000, gid=1000.
       - UID=1000
       - GID=1000
+
+  # Firefly III — Phase 3. Brand-new instance, its own dedicated MariaDB
+  # (same pattern as Tandoor's dedicated postgres pairing). Behind NPM at
+  # finance.marshmallowmc.com like everything else — a published port
+  # here, proxied by <host-ip>:<port>, not a shared Docker network.
+  firefly-db:
+    image: mariadb:lts
+    container_name: firefly-db
+    restart: unless-stopped
+    environment:
+      - MYSQL_RANDOM_ROOT_PASSWORD=yes
+      - MYSQL_DATABASE=firefly
+      - MYSQL_USER=firefly
+      - MYSQL_PASSWORD=CHANGE_ME_firefly_db_password
+    volumes:
+      - firefly_db_data:/var/lib/mysql
+
+  firefly-app:
+    image: fireflyiii/core:latest
+    container_name: firefly-app
+    restart: unless-stopped
+    depends_on:
+      - firefly-db
+    ports:
+      - "8080:8080"   # NPM proxies finance.marshmallowmc.com -> <host-ip>:8080
+    volumes:
+      - firefly_upload:/var/www/html/storage/upload
+    environment:
+      # Exactly 32 characters, no `=` or `#` (breaks some .env-style
+      # parsers). Generate with: tr -dc 'A-Za-z0-9' </dev/urandom | head -c32; echo
+      - APP_KEY=CHANGE_ME_32_char_random_string_no_special_chars
+      - APP_URL=https://finance.marshmallowmc.com
+      - TRUSTED_PROXIES=**   # required behind any reverse proxy, NPM included
+      - DB_CONNECTION=mysql
+      - DB_HOST=firefly-db
+      - DB_PORT=3306
+      - DB_DATABASE=firefly
+      - DB_USERNAME=firefly
+      - DB_PASSWORD=CHANGE_ME_firefly_db_password   # must match firefly-db above
+      - TZ=America/New_York
+
+  # Official recommended companion service — daily cron for recurring
+  # transactions, exchange rate updates, etc. Firefly runs fine without
+  # it, but scheduled features silently never fire without it.
+  firefly-cron:
+    image: alpine
+    container_name: firefly-cron
+    restart: unless-stopped
+    depends_on:
+      - firefly-app
+    environment:
+      - TZ=America/New_York
+      # Exactly 32 characters — same generation approach as APP_KEY above.
+      - STATIC_CRON_TOKEN=CHANGE_ME_32_char_token_matches_nothing_else
+    command: ["sh", "-c", "apk add tzdata && \
+      (ln -s /usr/share/zoneinfo/$$TZ /etc/localtime || true) && \
+      echo \"0 3 * * * wget -qO- http://firefly-app:8080/api/v1/cron/$$STATIC_CRON_TOKEN;echo\" \
+      | crontab - && \
+      crond -f -L /dev/stdout"]
+
+volumes:
+  firefly_db_data:
+  firefly_upload:

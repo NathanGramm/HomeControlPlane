@@ -18,6 +18,10 @@ const mcDetail = document.getElementById('mc-detail');
 const mcBtn = document.getElementById('mc-toggle-btn');
 let mcActionInFlight = false;
 
+const financeSection = document.getElementById('finance-section');
+const financeNetWorth = document.getElementById('finance-networth');
+const financeTransactions = document.getElementById('finance-transactions');
+
 function meterColor(pct) {
   if (pct >= 90) return 'var(--bad)';
   if (pct >= 70) return 'var(--warn)';
@@ -175,6 +179,65 @@ async function handleMinecraftClick() {
 
 mcBtn.addEventListener('click', handleMinecraftClick);
 
+function formatMoney(amount, currency) {
+  try {
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount);
+  } catch (err) {
+    return `${amount.toFixed(2)} ${currency}`;
+  }
+}
+
+function formatDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function renderFinance(data) {
+  if (!data.configured) {
+    financeSection.hidden = true;
+    return;
+  }
+  financeSection.hidden = false;
+
+  if (!data.netWorth.length) {
+    financeNetWorth.innerHTML = '<p class="loading">No asset accounts found.</p>';
+  } else {
+    financeNetWorth.innerHTML = data.netWorth
+      .map((n) => `<p class="networth-amount">${formatMoney(n.amount, n.currency)}</p>`)
+      .join('');
+  }
+
+  if (!data.recentTransactions.length) {
+    financeTransactions.innerHTML = '<p class="loading">No recent transactions.</p>';
+  } else {
+    financeTransactions.innerHTML = data.recentTransactions
+      .map((t) => {
+        const sign = t.type === 'withdrawal' ? '-' : t.type === 'deposit' ? '+' : '';
+        const cls = t.type === 'withdrawal' ? 'txn-out' : t.type === 'deposit' ? 'txn-in' : '';
+        return `
+        <div class="txn-row">
+          <div class="txn-row-head">
+            <span class="txn-desc">${escapeHtml(t.description)}</span>
+            <span class="txn-amount ${cls}">${sign}${t.amount != null ? formatMoney(t.amount, t.currency || 'USD') : '?'}</span>
+          </div>
+          <span class="txn-date">${formatDate(t.date)}</span>
+        </div>`;
+      })
+      .join('');
+  }
+}
+
+async function refreshFinance() {
+  try {
+    const data = await fetchJSON('/api/firefly/summary');
+    renderFinance(data);
+  } catch (err) {
+    console.error(err);
+  }
+}
+
 async function loadServices() {
   try {
     const services = await fetchJSON('/api/services');
@@ -217,6 +280,7 @@ function tick() {
   refreshCpu();
   refreshRam();
   refreshMinecraft();
+  refreshFinance();
 }
 
 tick();

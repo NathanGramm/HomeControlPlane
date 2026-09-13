@@ -1,10 +1,11 @@
-# Home Control Plane — Phase 1 + 2
+# Home Control Plane — Phase 1 + 2 + 3
 
-Skeleton, service tiles, CPU/RAM vitals, and now Minecraft on/off + live
-status — the first "act, don't just link" feature. No login logic in this
-app on purpose — auth is handled one layer up, by Nginx Proxy Manager's
-basic auth in front of the container. This only ever expects to be reached
-through NPM, over Tailscale.
+Skeleton, service tiles, CPU/RAM vitals, Minecraft on/off + live status,
+and now Firefly III net worth / recent transactions — all "act, don't
+just link" features on top of what started as a links page. No login
+logic in this app on purpose — auth is handled one layer up, by Nginx
+Proxy Manager's basic auth in front of the container. This only ever
+expects to be reached through NPM, over Tailscale.
 
 ## What's here
 
@@ -15,6 +16,7 @@ server/
   routes/system.js       GET /api/system/cpu, GET /api/system/ram
   routes/services.js     GET /api/services (reads config/services.json)
   routes/minecraft.js    GET /api/minecraft/status, POST .../start, .../stop
+  routes/firefly.js      GET /api/firefly/summary
   config/services.json   The tile list — edit this, not the code, to add/rename tiles
 public/
   index.html, styles.css, app.js   The dashboard itself (no build step, no framework)
@@ -41,6 +43,14 @@ docker-compose.snippet.yml
    the compose snippet), with basic auth enabled on it.
 4. **Pi-hole** — add a local DNS record for `dash.marshmallowmc.com` pointing
    at your server, same pattern as your other services.
+5. **Firefly III setup is two steps, in order** — see "Firefly III" below
+   before deploying. The short version: fill in the `CHANGE_ME_*`
+   placeholders in `docker-compose.snippet.yml` and deploy the
+   `firefly-*` services first; only *after* that's up and you've logged in
+   once can you generate the API token the dashboard needs, since Firefly
+   has no user account to attach a token to before then. Leaving
+   `FIREFLY_API_TOKEN` blank is fine in the meantime — the Finances
+   section just stays hidden until it's set.
 
 ## Running it
 
@@ -263,6 +273,74 @@ overhead; the container adds a small fixed cost for its own runtime, not
 per-GB-of-world), so it's worth treating as a separate, real constraint
 either way.
 
+## Firefly III (Phase 3)
+
+Brand-new instance — its own dedicated MariaDB (`firefly-db`), same
+pairing pattern as Tandoor's dedicated postgres container in your stack.
+`firefly-app` is the official `fireflyiii/core` image; `firefly-cron` is
+the officially-recommended companion container that hits Firefly's own
+cron endpoint daily for recurring transactions and exchange rate updates
+— Firefly runs fine without it, but those scheduled features silently
+never fire without it.
+
+### Setup is two steps, in that order
+
+**Step 1 — get Firefly itself running:**
+
+1. Fill in every `CHANGE_ME_*` placeholder in `docker-compose.snippet.yml`
+   under `firefly-db`, `firefly-app`, and `firefly-cron`:
+   - `MYSQL_PASSWORD` / `DB_PASSWORD` — must match each other exactly (two
+     different env vars for the same credential, one per container).
+   - `APP_KEY` — exactly 32 characters, no `=` or `#`. Generate with:
+     ```bash
+     tr -dc 'A-Za-z0-9' </dev/urandom | head -c32; echo
+     ```
+   - `STATIC_CRON_TOKEN` — same 32-character rule, generate the same way,
+     but use a **different** value than `APP_KEY`.
+2. `docker compose up -d firefly-db firefly-app firefly-cron`
+3. Create an NPM proxy host for `finance.marshmallowmc.com` →
+   `<your-server-ip>:8080`, and a Pi-hole DNS record, matching the pattern
+   used for `dash.marshmallowmc.com` in Phase 1.
+4. Visit `https://finance.marshmallowmc.com` and create your account —
+   this is a fresh instance, so the first account you register becomes
+   the admin.
+
+**Step 2 — let the dashboard read it:**
+
+5. Once logged in: **Options → Profile → OAuth → Personal Access
+   Tokens** → create a new token. (Firefly has no account to attach a
+   token to before step 4, which is why this can't be provisioned ahead
+   of time via env vars the way everything else in this repo is.)
+6. Set `FIREFLY_API_TOKEN` on `home-control-plane` to that token's value,
+   then `docker compose up -d --force-recreate home-control-plane`.
+7. The dashboard's Finances section should appear (it stays hidden
+   whenever `FIREFLY_API_TOKEN` is unset) showing net worth and your 5
+   most recent transactions.
+
+### Notes on the API integration
+
+- **Net worth is computed by summing asset account balances**
+  (`GET /api/v1/accounts?type=asset`), not via Firefly's own
+  `/api/v1/summary/basic` endpoint — that endpoint has a long-standing
+  open upstream bug rejecting valid `start`/`end` query parameters
+  ([firefly-iii/firefly-iii#12059](https://github.com/firefly-iii/firefly-iii/issues/12059)).
+  Summing asset accounts directly is a plainer, more stable endpoint and
+  produces the same number for a normal single-currency household setup.
+  If you use multiple currencies, each shows as its own line rather than
+  being converted/combined.
+- Every Firefly call degrades the same way the rest of this app does: a
+  failed or unauthenticated request logs a warning server-side and
+  returns an empty result, rather than a 500 or a broken widget.
+- **Not independently verified against a real Firefly instance** — the
+  route's parsing was tested against a hand-built stand-in server
+  matching Firefly's documented JSON:API response shape (accounts'
+  `current_balance`/`currency_code`, transactions' nested
+  `attributes.transactions[]` splits), the same way Phase 2's Docker
+  proxy calls were, but I don't have a live Firefly instance to confirm
+  against. Worth a look at the Finances section once real data is behind
+  it — if a field name is off, it'll show as an empty section rather than
+  an error, per the point above, so it's easy to miss silently.
+
 ## A build note from this session
 
 Phase 1 shipped without a real `npm install` (this sandbox's network egress
@@ -272,13 +350,11 @@ against a small local stand-in for the Docker Engine API (list/start/stop
 over the same HTTP protocol `docker-socket-proxy` and `dockerode` actually
 speak) — confirmed the status/start/stop cycle, the "container up but
 world not joinable yet" state, and graceful fallback when the proxy is
-unreachable, all through the real UI in a browser. What's *not* verified
-here is the real Minecraft server-list-ping succeeding against an actual
-running world, since that needs a real server — worth a quick look once
-this is deployed and `MINECRAFT_HOST`/`MINECRAFT_PORT` point at the real
-thing.
+unreachable, all through the real UI in a browser. Phase 3's Firefly route
+was tested the same way, against a hand-built stand-in rather than a real
+instance (see above).
 
-## Next: Phase 3
+## Next: Phase 4
 
-Firefly III — stand up the container (+ MariaDB), then wire in read-only
-balance/transaction widgets via its REST API.
+Calisthenics: routine builder, then session logging, then the feedback
+engine — in that order, since each depends on the last.
