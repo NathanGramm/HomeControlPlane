@@ -206,7 +206,7 @@ services:
       # FIREFLY_API_TOKEN — same creation steps (Options -> Profile ->
       # OAuth -> Personal Access Tokens), but its own token, so revoking
       # one integration's access later doesn't take the other down too.
-      - FIREFLY_III_ACCESS_TOKEN=CHANGE_ME_separate_token_for_importer
+      - FIREFLY_III_ACCESS_TOKEN=***REMOVED***
 
 volumes:
   firefly_db_data:
