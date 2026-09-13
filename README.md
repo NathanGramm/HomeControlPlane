@@ -331,15 +331,36 @@ never fire without it.
 - Every Firefly call degrades the same way the rest of this app does: a
   failed or unauthenticated request logs a warning server-side and
   returns an empty result, rather than a 500 or a broken widget.
-- **Not independently verified against a real Firefly instance** — the
-  route's parsing was tested against a hand-built stand-in server
-  matching Firefly's documented JSON:API response shape (accounts'
-  `current_balance`/`currency_code`, transactions' nested
-  `attributes.transactions[]` splits), the same way Phase 2's Docker
-  proxy calls were, but I don't have a live Firefly instance to confirm
-  against. Worth a look at the Finances section once real data is behind
-  it — if a field name is off, it'll show as an empty section rather than
-  an error, per the point above, so it's easy to miss silently.
+- **Confirmed working against a real instance** — net worth and recent
+  transactions both render correctly with a live account behind them.
+
+### Deployment gotchas hit in practice
+
+Two real issues came up getting this running, neither in the app code —
+worth knowing about if this ever gets redeployed from scratch:
+
+- **A stale MariaDB volume caused persistent "Access denied" errors on
+  `firefly-app`'s first boot**, even after fixing the password in the
+  compose file and even after deleting and recreating the containers in
+  Portainer. Cause: MariaDB's official image only runs its user/password
+  initialization once, the very first time it starts against an empty
+  data directory — changing `MYSQL_PASSWORD` afterward has no effect on
+  an already-initialized volume. And deleting containers in Portainer
+  does *not* delete their named volumes (that's the point of a named
+  volume — it's meant to survive container recreation), so the same
+  already-initialized, now-mismatched database kept coming back. The
+  giveaway in `firefly-db`'s own logs: `"MariaDB upgrade not required"`
+  on startup means it found *existing* data, not a fresh init — a true
+  fresh start logs actual table-creation output instead. Fix: delete the
+  volume itself (Portainer → Volumes), not just the containers, then
+  redeploy.
+- **New Firefly instances default to EUR**, not USD — accounts created
+  before changing that inherit EUR, and Firefly doesn't cleanly convert
+  an account's currency after the fact. Fixed by setting USD as the
+  default under **Options → Currencies** and recreating accounts (this
+  was a fresh instance with nothing real in it yet, so deleting and
+  redoing them was the simplest path — a live instance with real history
+  would need more care here).
 
 ## A build note from this session
 
@@ -351,7 +372,7 @@ over the same HTTP protocol `docker-socket-proxy` and `dockerode` actually
 speak) — confirmed the status/start/stop cycle, the "container up but
 world not joinable yet" state, and graceful fallback when the proxy is
 unreachable, all through the real UI in a browser. Phase 3's Firefly route
-was tested the same way, against a hand-built stand-in rather than a real
+was tested the same way pre-deployment, against a hand-built stand-in rather than a real
 instance (see above).
 
 ## Next: Phase 4
