@@ -244,6 +244,17 @@ compounding ways, caught from the container logs:
    and reliable, with the longer `STOP_DURATION` as a safety margin rather
    than the primary mechanism.
 
+**Resolved.** One more wrinkle surfaced while fixing this: the RCON
+password originally chosen contained a `$` (`***REMOVED***`), which
+Compose's own variable-interpolation pass silently swallowed as a
+reference to an undefined variable, truncating the value the container
+actually received — a classic Compose footgun, unrelated to RCON itself.
+Replaced with a plain alphanumeric password in both `server.properties`
+and the deploy environment (RCON is internal-only, never published, so
+there's no security cost to keeping it simple). **Confirmed working
+end-to-end**: Stop Server and Start Server both work cleanly from the
+dashboard via RCON, no more force-kills.
+
 Separately: `free -h` on the host showed ~1.2Gi free / ~3.7Gi "available"
 out of 11Gi total, with the JVM alone already asking for 6G — that's
 tight, and matches your instinct about needing more RAM. Containerizing
