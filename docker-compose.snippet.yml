@@ -183,6 +183,31 @@ services:
       | crontab - && \
       crond -f -L /dev/stdout"]
 
+  # Data Importer — the *manual* import path chosen over SimpleFIN/open
+  # banking auto-sync on purpose: this only ever talks to Firefly's own
+  # API, never to a bank or any third-party aggregator. You download a
+  # statement (CSV/OFX/QFX) from your bank's site yourself and upload it
+  # here; nobody's bank credentials ever leave the bank's own website.
+  # See README's "Firefly III" section for the actual import workflow.
+  firefly-importer:
+    image: fireflyiii/data-importer:latest
+    container_name: firefly-importer
+    restart: unless-stopped
+    depends_on:
+      - firefly-app
+    ports:
+      - "8081:8080"   # NPM proxies import.marshmallowmc.com -> <host-ip>:8081
+    environment:
+      - FIREFLY_III_URL=http://firefly-app:8080
+      - VANITY_URL=https://finance.marshmallowmc.com
+      - TRUSTED_PROXIES=**
+      - TZ=America/New_York
+      # A SEPARATE Personal Access Token from the dashboard's
+      # FIREFLY_API_TOKEN — same creation steps (Options -> Profile ->
+      # OAuth -> Personal Access Tokens), but its own token, so revoking
+      # one integration's access later doesn't take the other down too.
+      - FIREFLY_III_ACCESS_TOKEN=CHANGE_ME_separate_token_for_importer
+
 volumes:
   firefly_db_data:
   firefly_upload:

@@ -334,6 +334,42 @@ never fire without it.
 - **Confirmed working against a real instance** — net worth and recent
   transactions both render correctly with a live account behind them.
 
+### Keeping transactions updated: the Data Importer
+
+Deliberately chose manual statement import over automatic bank sync
+(SimpleFIN or similar) — US banks have no free open-banking API the way
+EU banks do under PSD2, so real auto-sync means a third-party aggregator
+holding read access to actual bank logins. `firefly-importer`
+(`fireflyiii/data-importer`) only ever talks to Firefly's own API — it
+never touches a bank or any external service. The tradeoff is it's not
+automatic: you download a statement yourself and upload it.
+
+**One-time setup:**
+
+1. Create a **second, separate** Personal Access Token (Options → Profile
+   → OAuth → Personal Access Tokens) — don't reuse the dashboard's
+   `FIREFLY_API_TOKEN`. Separate tokens per integration means revoking one
+   later doesn't take the other down too.
+2. Set that token as `FIREFLY_III_ACCESS_TOKEN` on `firefly-importer` in
+   `docker-compose.snippet.yml`, then deploy it.
+3. NPM proxy host for `import.marshmallowmc.com` → `<your-server-ip>:8081`,
+   plus a Pi-hole DNS record — same pattern as every other hostname here.
+
+**Actual workflow, whenever you want to bring in new transactions:**
+
+1. Log into your bank's own website, download a statement as CSV (or
+   OFX/QFX if your bank offers it — cleaner mapping, since it's
+   structured rather than freeform columns).
+2. Visit `https://import.marshmallowmc.com`, upload that file.
+3. Map its columns to Firefly's fields (date, description, amount,
+   account) — it remembers the mapping per file format, so this gets
+   faster after the first time per bank.
+4. Review the preview (it flags likely duplicates against what's already
+   in Firefly) and confirm the import.
+
+No credentials ever leave your bank's own site — the importer only ever
+sees the file you hand it and talks to your own Firefly instance.
+
 ### Deployment gotchas hit in practice
 
 Two real issues came up getting this running, neither in the app code —
