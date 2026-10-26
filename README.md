@@ -153,8 +153,10 @@ programmatic stop instead of simulating a keystroke.
 This is a live server with real world data — not attempting it without a
 concrete plan for preserving the world/mods/config and a tested rollback.
 
-**Confirmed:** Java 17.0.20 (matches GTNH 2.8.0's Java 17 build), server jar
-is `lwjgl3ify-forgePatches.jar`, and everything — world, mods, config,
+**Confirmed:** Java 17 (`itzg/minecraft-server:java17`; GTNH 2.9.0-RC-2's
+Java 17–25 server build runs on it — `java25` is the optional faster tag),
+server jar is `lwjgl3ify-forgePatches.jar` (re-check the name in the 2.9.0
+zip), and everything — world, mods, config,
 whitelist/ops/bans, `server.properties` — lives flat under
 `~/GTNHServer`. The `gtnh-minecraft` service in
 `docker-compose.snippet.yml` bind-mounts that directory as `/data` as-is
