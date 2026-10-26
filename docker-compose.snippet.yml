@@ -89,6 +89,9 @@ services:
       - /home/ncgramm/GTNHServer:/data
     environment:
       - EULA=TRUE
+      # Creates /tmp/minecraft-console-in so `mc-send-to-console <cmd>` works
+      # from a Portainer exec shell (e.g. /fml confirm, /fml cancel).
+      - CREATE_CONSOLE_IN_PIPE=true
       - TYPE=CUSTOM
       - CUSTOM_SERVER=/data/lwjgl3ify-forgePatches.jar
       # GTNH 2.9.0-RC-2 upgrade (from 2.8.4): -Dfml.queryResult=confirm is
