@@ -172,6 +172,7 @@ services:
       - DB_DATABASE=firefly
       - DB_USERNAME=firefly
       - DB_PASSWORD=${FIREFLY_DB_PASSWORD:?set in .env}   # must match firefly-db above
+      - STATIC_CRON_TOKEN=${FIREFLY_STATIC_CRON_TOKEN:?set in .env}
       - TZ=America/New_York
 
   # Official recommended companion service — daily cron for recurring
