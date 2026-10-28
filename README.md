@@ -257,7 +257,7 @@ compounding ways, caught from the container logs:
    than the primary mechanism.
 
 **Resolved.** One more wrinkle surfaced while fixing this: the RCON
-password originally chosen contained a `$` (`***REMOVED***`), which
+password originally chosen contained a `$`, which
 Compose's own variable-interpolation pass silently swallowed as a
 reference to an undefined variable, truncating the value the container
 actually received — a classic Compose footgun, unrelated to RCON itself.
@@ -289,16 +289,16 @@ never fire without it.
 
 **Step 1 — get Firefly itself running:**
 
-1. Fill in every `CHANGE_ME_*` placeholder in `docker-compose.snippet.yml`
-   under `firefly-db`, `firefly-app`, and `firefly-cron`:
-   - `MYSQL_PASSWORD` / `DB_PASSWORD` — must match each other exactly (two
-     different env vars for the same credential, one per container).
-   - `APP_KEY` — exactly 32 characters, no `=` or `#`. Generate with:
+1. `cp .env.example .env` and fill in (`.env` is gitignored; Compose reads
+   it automatically and the snippet references each value as `${VAR}`):
+   - `FIREFLY_DB_PASSWORD` — one value, used by both `firefly-db` and
+     `firefly-app`, so they can't drift apart.
+   - `FIREFLY_APP_KEY` — exactly 32 characters, no `=` or `#`. Generate with:
      ```bash
      tr -dc 'A-Za-z0-9' </dev/urandom | head -c32; echo
      ```
-   - `STATIC_CRON_TOKEN` — same 32-character rule, generate the same way,
-     but use a **different** value than `APP_KEY`.
+   - `FIREFLY_STATIC_CRON_TOKEN` — same 32-character rule, generate the same
+     way, but use a **different** value than `FIREFLY_APP_KEY`.
 2. `docker compose up -d firefly-db firefly-app firefly-cron`
 3. Create an NPM proxy host for `finance.marshmallowmc.com` →
    `<your-server-ip>:8080`, and a Pi-hole DNS record, matching the pattern
@@ -313,7 +313,7 @@ never fire without it.
    Tokens** → create a new token. (Firefly has no account to attach a
    token to before step 4, which is why this can't be provisioned ahead
    of time via env vars the way everything else in this repo is.)
-6. Set `FIREFLY_API_TOKEN` on `home-control-plane` to that token's value,
+6. Set `FIREFLY_API_TOKEN` in `.env` to that token's value,
    then `docker compose up -d --force-recreate home-control-plane`.
 7. The dashboard's Finances section should appear (it stays hidden
    whenever `FIREFLY_API_TOKEN` is unset) showing net worth and your 5
@@ -352,8 +352,8 @@ automatic: you download a statement yourself and upload it.
    → OAuth → Personal Access Tokens) — don't reuse the dashboard's
    `FIREFLY_API_TOKEN`. Separate tokens per integration means revoking one
    later doesn't take the other down too.
-2. Set that token as `FIREFLY_III_ACCESS_TOKEN` on `firefly-importer` in
-   `docker-compose.snippet.yml`, then deploy it.
+2. Set that token as `FIREFLY_IMPORTER_TOKEN` in `.env`, then deploy
+   `firefly-importer`.
 3. NPM proxy host for `import.marshmallowmc.com` → `<your-server-ip>:8081`,
    plus a Pi-hole DNS record — same pattern as every other hostname here.
 

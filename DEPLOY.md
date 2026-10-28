@@ -101,8 +101,9 @@ every phase from here on.
 
 ## A note on secrets
 
-Nothing in Phase 1 needs one. Phase 3 (Firefly III) will need an API
-token, and it should never land in a committed file — a `.env` file
-(already excluded via `.gitignore`) read through `process.env` is the
-pattern to reach for when that comes up, not a hardcoded value in
-`services.json` or anywhere else in the repo.
+Every secret (RCON password, Firefly DB password/app key/cron token, both
+Firefly API tokens) lives in `.env`, which is gitignored. Copy
+`.env.example` to `.env` next to the compose file and fill it in; Compose
+substitutes the `${VAR}` references in `docker-compose.snippet.yml`, and
+refuses to start if a required one is missing. On a Portainer git stack,
+enter the same keys under the stack's **Environment variables** instead.

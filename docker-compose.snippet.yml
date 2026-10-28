@@ -69,7 +69,7 @@ services:
       # create a Personal Access Token from its own UI — see README.
       # Leaving this blank/unset is fine: the dashboard just hides the
       # Finances section entirely until a real token is here.
-      - FIREFLY_API_TOKEN=***REMOVED***
+      - FIREFLY_API_TOKEN=${FIREFLY_API_TOKEN:-}
 
   # GTNH server — see README's "Moving Minecraft into a container" section
   # before touching this on the real host. Bind-mounts the *existing*
@@ -129,7 +129,7 @@ services:
       # Without that, mc-server-runner's graceful stop silently falls back
       # to typing "stop" into the console, which is slower and is what
       # triggered the forced-kill above.
-      - RCON_PASSWORD=***REMOVED***   # internal-only: no RCON port is published below
+      - RCON_PASSWORD=${RCON_PASSWORD:?set in .env}   # internal-only: no RCON port is published below
       # Confirmed via `id ncgramm` on the host: uid=1000, gid=1000.
       - UID=1000
       - GID=1000
@@ -146,7 +146,7 @@ services:
       - MYSQL_RANDOM_ROOT_PASSWORD=yes
       - MYSQL_DATABASE=firefly
       - MYSQL_USER=firefly
-      - MYSQL_PASSWORD=***REMOVED***
+      - MYSQL_PASSWORD=${FIREFLY_DB_PASSWORD:?set in .env}
     volumes:
       - firefly_db_data:/var/lib/mysql
 
@@ -163,7 +163,7 @@ services:
     environment:
       # Exactly 32 characters, no `=` or `#` (breaks some .env-style
       # parsers). Generate with: tr -dc 'A-Za-z0-9' </dev/urandom | head -c32; echo
-      - APP_KEY=***REMOVED***
+      - APP_KEY=${FIREFLY_APP_KEY:?set in .env}
       - APP_URL=https://finance.marshmallowmc.com
       - TRUSTED_PROXIES=**   # required behind any reverse proxy, NPM included
       - DB_CONNECTION=mysql
@@ -171,7 +171,7 @@ services:
       - DB_PORT=3306
       - DB_DATABASE=firefly
       - DB_USERNAME=firefly
-      - DB_PASSWORD=***REMOVED***   # must match firefly-db above
+      - DB_PASSWORD=${FIREFLY_DB_PASSWORD:?set in .env}   # must match firefly-db above
       - TZ=America/New_York
 
   # Official recommended companion service — daily cron for recurring
@@ -186,7 +186,7 @@ services:
     environment:
       - TZ=America/New_York
       # Exactly 32 characters — same generation approach as APP_KEY above.
-      - STATIC_CRON_TOKEN=***REMOVED***
+      - STATIC_CRON_TOKEN=${FIREFLY_STATIC_CRON_TOKEN:?set in .env}
     command: ["sh", "-c", "apk add tzdata && \
       (ln -s /usr/share/zoneinfo/$$TZ /etc/localtime || true) && \
       echo \"0 3 * * * wget -qO- http://firefly-app:8080/api/v1/cron/$$STATIC_CRON_TOKEN;echo\" \
@@ -216,7 +216,7 @@ services:
       # FIREFLY_API_TOKEN — same creation steps (Options -> Profile ->
       # OAuth -> Personal Access Tokens), but its own token, so revoking
       # one integration's access later doesn't take the other down too.
-      - FIREFLY_III_ACCESS_TOKEN=***REMOVED***
+      - FIREFLY_III_ACCESS_TOKEN=${FIREFLY_IMPORTER_TOKEN:-}
 
 volumes:
   firefly_db_data:
