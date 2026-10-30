@@ -80,6 +80,7 @@ services:
   # server.properties, the works) rather than copying anything, so there's
   # exactly one copy of your world at all times.
   gtnh-minecraft:
+    profiles: ["gtnh"]   # stack redeploys skip it; see family-minecraft below
     image: itzg/minecraft-server:java17
     container_name: gtnh-minecraft
     restart: unless-stopped
@@ -141,9 +142,12 @@ services:
   # before the first boot: upgrading to a newer VERSION is one-way for the
   # world. Same bind-mount approach as gtnh-minecraft, so there's one copy
   # of the world. Only run now and then, so it deliberately doesn't start
-  # at boot. Use the dashboard after the first `docker compose up -d
-  # family-minecraft`: it refuses to run this and GTNH at the same time.
+  # at boot. The profile keeps stack redeploys from starting it, and the
+  # existing container stays around for the dashboard, which refuses to run
+  # this and GTNH at the same time. Compose changes to either Minecraft
+  # service only apply with COMPOSE_PROFILES set — see engineering-notes.
   family-minecraft:
+    profiles: ["family"]
     image: itzg/minecraft-server:java25
     container_name: family-minecraft
     restart: "no"
@@ -185,8 +189,10 @@ services:
     volumes:
       - /home/ncgramm/GTNHServer:/servers/GTNHServer
       - /home/ncgramm/FamilyServer:/servers/FamilyServer
-      - ./filebrowser/config.yaml:/home/filebrowser/config.yaml:ro
       - filebrowser_data:/home/filebrowser/data
+    configs:
+      - source: filebrowser_config
+        target: /home/filebrowser/config.yaml
     environment:
       - FILEBROWSER_CONFIG=/home/filebrowser/config.yaml
       - FILEBROWSER_ADMIN_PASSWORD=${FILEBROWSER_ADMIN_PASSWORD:?set in .env}
@@ -280,3 +286,18 @@ volumes:
   firefly_db_data:
   firefly_upload:
   filebrowser_data:
+
+# Inline rather than a bind-mounted file: Portainer stacks resolve relative
+# paths against its own data folder, where a repo file doesn't exist.
+configs:
+  filebrowser_config:
+    content: |
+      server:
+        cacheDir: /home/filebrowser/data/tmp
+        sources:
+          - path: /servers/GTNHServer
+            config:
+              defaultEnabled: true
+          - path: /servers/FamilyServer
+            config:
+              defaultEnabled: true

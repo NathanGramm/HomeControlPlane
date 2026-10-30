@@ -339,16 +339,24 @@ worth knowing about if this ever gets redeployed from scratch:
 `family-minecraft` is a vanilla server in `~/FamilyServer`, bind-mounted as
 `/data` the same way `gtnh-minecraft` is. It's only run now and then, so
 `restart: "no"` keeps it from starting at boot and from holding 3 GB of an
-11 GB host. docker-socket-proxy can't create containers, so the first `up`
-has to happen over SSH; after that the dashboard's Family Server card starts
-and stops it.
+11 GB host.
+
+**Redeploys leave both Minecraft servers alone.** A stack redeploy starts every
+service, including ones stopped on purpose, so `family-minecraft` and
+`gtnh-minecraft` sit behind the `family` and `gtnh` Compose profiles and only
+the dashboard starts them. The catch is that a redeploy doesn't apply compose
+changes to them either. To apply one, stop both servers, add
+`COMPOSE_PROFILES=family` (or `gtnh`) to the Portainer stack's environment
+variables, redeploy, which also starts that server, then remove the variable.
+docker-socket-proxy can't create containers, so the same steps recreate a
+container if one is ever deleted.
 
 **Only one server at a time, until the RAM upgrade.** `POST
 /api/minecraft/:server/start` returns 409 while the other server's container
 is in any state but `created`, `exited` or `dead`, so one that's still saving
 during a slow stop counts as up. If Docker can't be read, the start is
-refused rather than assumed safe. This only guards the dashboard: `docker
-compose up` over SSH bypasses it, and host RAM is still at risk then. To
+refused rather than assumed safe. This only guards the dashboard: a deploy
+that brings up both servers bypasses it, and host RAM is at risk then. To
 lift the limit, delete `findRunningOtherServer` and its two callers in
 `server/routes/minecraft.js`.
 
@@ -360,23 +368,13 @@ the Iris installer or Modrinth rather than picking Sodium by hand, since
 newer Sodium builds can break Iris.
 
 **The upgrade is one-way.** Minecraft doesn't support opening an upgraded
-world in the older version, so the backup below is the only way back.
+world in the older version. The world went to 26.3 on an unplanned stack
+deploy on 2026-10-30, before these profiles existed. For later version
+changes, back up first: `cp -a ~/FamilyServer ~/FamilyServer.bak`.
 
-First boot, with nothing else using port 25565:
-
-1. Stop the bare server and back up:
-   `cp -a ~/FamilyServer ~/FamilyServer.bak`
-2. In `~/FamilyServer/server.properties`, check `server-port=25565` and set
-   `enable-rcon=true`, `rcon.port=25575` and `rcon.password=<RCON_PASSWORD
-   from .env>`. Without this, graceful stop falls back to the console.
-3. `docker compose -f docker-compose.snippet.yml up -d family-minecraft`,
-   then `docker logs -f family-minecraft` until it says `Done`.
-4. Join and check the world is yours before deleting the backup.
-
-5. Redeploy `home-control-plane` so the dashboard picks up the new card.
-
-Rollback: `docker compose stop family-minecraft`, restore the backup over
-`~/FamilyServer`, and start the old server the way you did before.
+`server.properties` still needs `server-port=25565`, plus `enable-rcon=true`,
+`rcon.port=25575` and `rcon.password=<RCON_PASSWORD>`. Without RCON, graceful
+stop falls back to the console.
 
 ## Server files
 
@@ -394,9 +392,8 @@ under it can corrupt them. Nothing enforces this.
 
 Setup:
 
-1. Add `FILEBROWSER_ADMIN_PASSWORD` to `.env` (or the Portainer stack's
-   environment variables).
-2. `docker compose -f docker-compose.snippet.yml up -d file-browser`
-3. Add an NPM proxy host for `files.marshmallowmc.com` -> `<host-ip>:8082`,
+1. Add `FILEBROWSER_ADMIN_PASSWORD` to the Portainer stack's environment
+   variables and redeploy.
+2. Add an NPM proxy host for `files.marshmallowmc.com` -> `<host-ip>:8082`,
    with the same access list as the dashboard, and a Pi-hole record for it.
    Never port-forward it: `server.properties` holds the RCON password.

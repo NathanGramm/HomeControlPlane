@@ -1,9 +1,0 @@
-server:
-  cacheDir: /home/filebrowser/data/tmp
-  sources:
-    - path: /servers/GTNHServer
-      config:
-        defaultEnabled: true
-    - path: /servers/FamilyServer
-      config:
-        defaultEnabled: true
