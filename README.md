@@ -73,7 +73,7 @@ server/
   index.js               Express app + static file serving
   docker.js              Shared Docker client (talks to docker-socket-proxy)
   routes/system.js       GET /api/system/cpu, /api/system/ram
-  routes/minecraft.js    GET /api/minecraft/status, POST /start, /stop
+  routes/minecraft.js    GET /api/minecraft/:server/status, POST /start, /stop
   routes/firefly.js      GET /api/firefly/summary
   routes/services.js     GET /api/services
   config/services.json   Service tile list
@@ -136,6 +136,7 @@ server, and is closed out before the next one starts.
 - [ ] Find out why the Minecraft world's automated backups stopped, and add a backup job outside the mod that's monitored.
 - [ ] Upgrade the Minecraft server to GTNH 2.9.0 (compose changes are prepped).
 - [ ] Add RAM to the host. The 6 GB Minecraft JVM leaves little headroom on 11 GB.
+- [ ] After the RAM upgrade, remove the check that stops `gtnh-minecraft` and `family-minecraft` running together (see the [engineering notes](docs/engineering-notes.md#family-server)).
 
 ## Lessons learned
 

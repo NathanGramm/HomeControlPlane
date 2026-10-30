@@ -62,6 +62,9 @@ services:
       - MINECRAFT_CONTAINER_NAME=gtnh-minecraft
       - MINECRAFT_HOST=gtnh-minecraft
       - MINECRAFT_PORT=25564
+      - FAMILY_MINECRAFT_CONTAINER_NAME=family-minecraft
+      - FAMILY_MINECRAFT_HOST=family-minecraft
+      - FAMILY_MINECRAFT_PORT=25565
       # Same reasoning as MINECRAFT_HOST above — firefly-app's container
       # name works directly since they share this compose file's network.
       - FIREFLY_URL=http://firefly-app:8080
@@ -131,6 +134,41 @@ services:
       # triggered the forced-kill above.
       - RCON_PASSWORD=${RCON_PASSWORD:?set in .env}   # internal-only: no RCON port is published below
       # Confirmed via `id ncgramm` on the host: uid=1000, gid=1000.
+      - UID=1000
+      - GID=1000
+
+  # Vanilla family server — see engineering-notes' "Family server" section
+  # before the first boot: upgrading to a newer VERSION is one-way for the
+  # world. Same bind-mount approach as gtnh-minecraft, so there's one copy
+  # of the world. Only run now and then, so it deliberately doesn't start
+  # at boot. Use the dashboard after the first `docker compose up -d
+  # family-minecraft`: it refuses to run this and GTNH at the same time.
+  family-minecraft:
+    image: itzg/minecraft-server:java25
+    container_name: family-minecraft
+    restart: "no"
+    stop_grace_period: 90s   # must exceed STOP_DURATION below, or Compose SIGKILLs mid-save
+    ports:
+      - "25565:25565"   # must match server.properties' server-port; 25564 is taken by gtnh-minecraft
+    volumes:
+      - /home/ncgramm/FamilyServer:/data
+    environment:
+      - EULA=TRUE
+      - TYPE=VANILLA
+      # Pinned, not LATEST: clients need a matching Iris build before the
+      # server moves, and a surprise upgrade can't be undone.
+      - VERSION=26.3
+      # 3G is enough for a small vanilla world, and GTNH's 6G on an 11G host
+      # leaves little more if both run at once.
+      - INIT_MEMORY=3G
+      - MAX_MEMORY=3G
+      - OVERRIDE_SERVER_PROPERTIES=false   # keep the existing level-name, difficulty, etc.
+      - STOP_DURATION=60
+      - ENABLE_RCON=true
+      # Same catch as gtnh-minecraft: server.properties must be edited by
+      # hand to match, since OVERRIDE_SERVER_PROPERTIES=false stops the image
+      # from writing these. See engineering-notes' "Family server" section.
+      - RCON_PASSWORD=${RCON_PASSWORD:?set in .env}   # internal-only: no RCON port is published below
       - UID=1000
       - GID=1000
 

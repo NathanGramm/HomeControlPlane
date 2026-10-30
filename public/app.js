@@ -13,10 +13,16 @@ const containerList = document.getElementById('container-list');
 
 const tileGrid = document.getElementById('tile-grid');
 
-const mcPill = document.getElementById('mc-status-pill');
-const mcDetail = document.getElementById('mc-detail');
-const mcBtn = document.getElementById('mc-toggle-btn');
-let mcActionInFlight = false;
+const mcCards = [
+  { id: 'gtnh', prefix: 'mc' },
+  { id: 'family', prefix: 'family' },
+].map(({ id, prefix }) => ({
+  id,
+  pill: document.getElementById(`${prefix}-status-pill`),
+  detail: document.getElementById(`${prefix}-detail`),
+  btn: document.getElementById(`${prefix}-toggle-btn`),
+  actionInFlight: false,
+}));
 
 const financeSection = document.getElementById('finance-section');
 const financeNetWorth = document.getElementById('finance-networth');
@@ -107,8 +113,9 @@ function setPill(el, text, kind) {
   el.className = `status-pill status-${kind}`;
 }
 
-function renderMinecraft(data) {
-  const { container, server } = data;
+function renderMinecraft(card, data) {
+  const { pill: mcPill, detail: mcDetail, btn: mcBtn } = card;
+  const { container, server, blockedBy } = data;
 
   // The join-status ping is independent of container discovery, so this
   // reflects reality even before Minecraft is containerized (today: a
@@ -137,47 +144,51 @@ function renderMinecraft(data) {
   if (container.state === 'running') {
     mcBtn.textContent = 'Stop Server';
     mcBtn.dataset.action = 'stop';
+  } else if (blockedBy) {
+    mcBtn.disabled = true;
+    mcBtn.textContent = `Stop ${blockedBy} Server First`;
+    delete mcBtn.dataset.action;
   } else {
     mcBtn.textContent = 'Start Server';
     mcBtn.dataset.action = 'start';
   }
 }
 
-async function refreshMinecraft() {
-  if (mcActionInFlight) return; // don't clobber the optimistic UI mid-action
+async function refreshMinecraft(card) {
+  if (card.actionInFlight) return; // don't clobber the optimistic UI mid-action
   try {
-    const data = await fetchJSON('/api/minecraft/status');
-    renderMinecraft(data);
+    const data = await fetchJSON(`/api/minecraft/${card.id}/status`);
+    renderMinecraft(card, data);
   } catch (err) {
-    setPill(mcPill, 'error', 'bad');
-    mcDetail.textContent = 'Could not reach the dashboard backend.';
-    mcBtn.disabled = true;
+    setPill(card.pill, 'error', 'bad');
+    card.detail.textContent = 'Could not reach the dashboard backend.';
+    card.btn.disabled = true;
     console.error(err);
   }
 }
 
-async function handleMinecraftClick() {
-  const action = mcBtn.dataset.action;
+async function handleMinecraftClick(card) {
+  const action = card.btn.dataset.action;
   if (!action) return;
 
-  mcActionInFlight = true;
-  mcBtn.disabled = true;
-  setPill(mcPill, action === 'start' ? 'starting…' : 'stopping…', 'warn');
-  mcDetail.textContent = '';
+  card.actionInFlight = true;
+  card.btn.disabled = true;
+  setPill(card.pill, action === 'start' ? 'starting…' : 'stopping…', 'warn');
+  card.detail.textContent = '';
 
   try {
-    const res = await fetch(`/api/minecraft/${action}`, { method: 'POST' });
+    const res = await fetch(`/api/minecraft/${card.id}/${action}`, { method: 'POST' });
     if (!res.ok) throw new Error(`${action} failed: ${res.status}`);
   } catch (err) {
-    mcDetail.textContent = `Failed to ${action} the server.`;
+    card.detail.textContent = `Failed to ${action} the server.`;
     console.error(err);
   } finally {
-    mcActionInFlight = false;
-    refreshMinecraft();
+    card.actionInFlight = false;
+    mcCards.forEach(refreshMinecraft);
   }
 }
 
-mcBtn.addEventListener('click', handleMinecraftClick);
+mcCards.forEach((card) => card.btn.addEventListener('click', () => handleMinecraftClick(card)));
 
 function formatMoney(amount, currency) {
   try {
@@ -279,7 +290,7 @@ ramCard.addEventListener('click', () => toggleExpand(ramCard, containerList));
 function tick() {
   refreshCpu();
   refreshRam();
-  refreshMinecraft();
+  mcCards.forEach(refreshMinecraft);
   refreshFinance();
 }
 

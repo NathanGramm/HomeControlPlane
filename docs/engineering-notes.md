@@ -333,3 +333,47 @@ worth knowing about if this ever gets redeployed from scratch:
   redoing them was the simplest path — a live instance with real history
   would need more care here).
 
+
+## Family server
+
+`family-minecraft` is a vanilla server in `~/FamilyServer`, bind-mounted as
+`/data` the same way `gtnh-minecraft` is. It's only run now and then, so
+`restart: "no"` keeps it from starting at boot and from holding 3 GB of an
+11 GB host. docker-socket-proxy can't create containers, so the first `up`
+has to happen over SSH; after that the dashboard's Family Server card starts
+and stops it.
+
+**Only one server at a time, until the RAM upgrade.** `POST
+/api/minecraft/:server/start` returns 409 while the other server's container
+is in any state but `created`, `exited` or `dead`, so one that's still saving
+during a slow stop counts as up. If Docker can't be read, the start is
+refused rather than assumed safe. This only guards the dashboard: `docker
+compose up` over SSH bypasses it, and host RAM is still at risk then. To
+lift the limit, delete `findRunningOtherServer` and its two callers in
+`server/routes/minecraft.js`.
+
+**Version: 26.3**, the newest release with a stable Iris shader build for
+Fabric as of 2026-10-30 (Iris 1.11.7, Sodium 0.9.2). It needs Java 25, hence
+the `java25` image tag. Shaders are client-side only, so the server stays
+vanilla; each client needs Fabric plus Iris and Sodium. Install them through
+the Iris installer or Modrinth rather than picking Sodium by hand, since
+newer Sodium builds can break Iris.
+
+**The upgrade is one-way.** Minecraft doesn't support opening an upgraded
+world in the older version, so the backup below is the only way back.
+
+First boot, with nothing else using port 25565:
+
+1. Stop the bare server and back up:
+   `cp -a ~/FamilyServer ~/FamilyServer.bak`
+2. In `~/FamilyServer/server.properties`, check `server-port=25565` and set
+   `enable-rcon=true`, `rcon.port=25575` and `rcon.password=<RCON_PASSWORD
+   from .env>`. Without this, graceful stop falls back to the console.
+3. `docker compose -f docker-compose.snippet.yml up -d family-minecraft`,
+   then `docker logs -f family-minecraft` until it says `Done`.
+4. Join and check the world is yours before deleting the backup.
+
+5. Redeploy `home-control-plane` so the dashboard picks up the new card.
+
+Rollback: `docker compose stop family-minecraft`, restore the backup over
+`~/FamilyServer`, and start the old server the way you did before.
