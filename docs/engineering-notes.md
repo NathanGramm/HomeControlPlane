@@ -377,3 +377,26 @@ First boot, with nothing else using port 25565:
 
 Rollback: `docker compose stop family-minecraft`, restore the backup over
 `~/FamilyServer`, and start the old server the way you did before.
+
+## Server files
+
+`file-browser` runs [FileBrowser Quantum](https://github.com/gtsteffaniak/filebrowser)
+at `files.marshmallowmc.com`, with `~/GTNHServer` and `~/FamilyServer` as its
+two sources. It's a separate container rather than part of the dashboard, so
+the dashboard stays limited to start/stop. Original File Browser was archived
+in 2026 and gets no more security fixes, so don't swap back to it. The tag is
+pinned to `2.0-stable`; pull it regularly, since this fork ships security
+fixes often.
+
+**Stop a server before editing its files.** A running server can overwrite
+`server.properties` and other config on shutdown, and changing world files
+under it can corrupt them. Nothing enforces this.
+
+Setup:
+
+1. Add `FILEBROWSER_ADMIN_PASSWORD` to `.env` (or the Portainer stack's
+   environment variables).
+2. `docker compose -f docker-compose.snippet.yml up -d file-browser`
+3. Add an NPM proxy host for `files.marshmallowmc.com` -> `<host-ip>:8082`,
+   with the same access list as the dashboard, and a Pi-hole record for it.
+   Never port-forward it: `server.properties` holds the RCON password.

@@ -172,6 +172,25 @@ services:
       - UID=1000
       - GID=1000
 
+  # FileBrowser Quantum, the maintained fork: upstream filebrowser/filebrowser
+  # was archived in 2026 and gets no more security fixes. Can write to both
+  # server folders, so it stays LAN/Tailscale-only and never gets the Docker
+  # socket. Stop a server before editing its files — see engineering-notes.
+  file-browser:
+    image: ghcr.io/gtsteffaniak/filebrowser:2.0-stable
+    container_name: file-browser
+    restart: unless-stopped
+    ports:
+      - "8082:80"   # NPM proxies files.marshmallowmc.com -> <host-ip>:8082
+    volumes:
+      - /home/ncgramm/GTNHServer:/servers/GTNHServer
+      - /home/ncgramm/FamilyServer:/servers/FamilyServer
+      - ./filebrowser/config.yaml:/home/filebrowser/config.yaml:ro
+      - filebrowser_data:/home/filebrowser/data
+    environment:
+      - FILEBROWSER_CONFIG=/home/filebrowser/config.yaml
+      - FILEBROWSER_ADMIN_PASSWORD=${FILEBROWSER_ADMIN_PASSWORD:?set in .env}
+
   # Firefly III — Phase 3. Brand-new instance, its own dedicated MariaDB
   # (same pattern as Tandoor's dedicated postgres pairing). Behind NPM at
   # finance.marshmallowmc.com like everything else — a published port
@@ -260,3 +279,4 @@ services:
 volumes:
   firefly_db_data:
   firefly_upload:
+  filebrowser_data:

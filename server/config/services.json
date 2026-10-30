@@ -21,6 +21,13 @@
     "note": "Native stats tile planned for Phase 5; link-through for now."
   },
   {
+    "id": "files",
+    "name": "Server Files",
+    "category": "Infra",
+    "url": "https://files.marshmallowmc.com",
+    "note": "Stop a Minecraft server before editing its files."
+  },
+  {
     "id": "tandoor",
     "name": "Tandoor",
     "category": "Media",

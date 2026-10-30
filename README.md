@@ -111,6 +111,7 @@ walkthrough, including Firefly's two-stage token setup, is in
 | Variable | Used by | Purpose |
 |----------|---------|---------|
 | `RCON_PASSWORD` | Minecraft | Graceful shutdown over RCON (must match `server.properties`) |
+| `FILEBROWSER_ADMIN_PASSWORD` | FileBrowser Quantum | Admin login for the server file manager |
 | `FIREFLY_DB_PASSWORD` | Firefly + MariaDB | Database password, shared by both containers |
 | `FIREFLY_APP_KEY` | Firefly | 32-character encryption key |
 | `FIREFLY_STATIC_CRON_TOKEN` | Firefly + cron | Authenticates the daily cron job |
