@@ -64,7 +64,7 @@ services:
       - MINECRAFT_PORT=25564
       - FAMILY_MINECRAFT_CONTAINER_NAME=family-minecraft
       - FAMILY_MINECRAFT_HOST=family-minecraft
-      - FAMILY_MINECRAFT_PORT=25565
+      - FAMILY_MINECRAFT_PORT=25566
       # Same reasoning as MINECRAFT_HOST above — firefly-app's container
       # name works directly since they share this compose file's network.
       - FIREFLY_URL=http://firefly-app:8080
@@ -153,7 +153,7 @@ services:
     restart: "no"
     stop_grace_period: 90s   # must exceed STOP_DURATION below, or Compose SIGKILLs mid-save
     ports:
-      - "25565:25565"   # must match server.properties' server-port; 25564 is taken by gtnh-minecraft
+      - "25566:25566"   # must match server.properties' server-port=25566; 25564 is taken by gtnh-minecraft
     volumes:
       - /home/ncgramm/FamilyServer:/data
     environment:

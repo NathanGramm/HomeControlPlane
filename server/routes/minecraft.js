@@ -25,7 +25,7 @@ const SERVERS = {
     label: 'Family',
     containerName: process.env.FAMILY_MINECRAFT_CONTAINER_NAME || 'family-minecraft',
     host: process.env.FAMILY_MINECRAFT_HOST || 'localhost',
-    port: Number(process.env.FAMILY_MINECRAFT_PORT) || 25565,
+    port: Number(process.env.FAMILY_MINECRAFT_PORT) || 25566,
   },
 };
 

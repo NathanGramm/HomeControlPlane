@@ -372,7 +372,8 @@ world in the older version. The world went to 26.3 on an unplanned stack
 deploy on 2026-10-30, before these profiles existed. For later version
 changes, back up first: `cp -a ~/FamilyServer ~/FamilyServer.bak`.
 
-`server.properties` still needs `server-port=25565`, plus `enable-rcon=true`,
+`server.properties` needs `server-port=25566` (the port players connect to,
+and the one published in the compose file), plus `enable-rcon=true`,
 `rcon.port=25575` and `rcon.password=<RCON_PASSWORD>`. Without RCON, graceful
 stop falls back to the console.
 
