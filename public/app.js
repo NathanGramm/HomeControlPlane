@@ -123,7 +123,9 @@ function renderMinecraft(card, data) {
   // not yet control).
   if (server && server.online) {
     setPill(mcPill, 'online', 'good');
-    mcDetail.textContent = `${server.players}/${server.maxPlayers} players`;
+    mcDetail.textContent = server.players == null
+      ? 'Joinable. Player count is hidden.'
+      : `${server.players}/${server.maxPlayers} players`;
   } else if (container.state === 'running') {
     setPill(mcPill, 'starting…', 'warn');
     mcDetail.textContent = 'Container is up, world isn’t joinable yet.';

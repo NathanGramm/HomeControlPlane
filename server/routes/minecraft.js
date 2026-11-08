@@ -98,6 +98,15 @@ async function pingServer(server) {
   }
 }
 
+// The image's healthcheck pings the server from inside its own container, so
+// "(healthy)" in Docker's status means the world is joinable. It's the
+// fallback when our own ping gets nothing, as when the family server's
+// ping-hiding plugin doesn't answer this container's IP. No player count
+// comes with it.
+function isHealthy(containerInfo) {
+  return typeof containerInfo?.Status === 'string' && containerInfo.Status.includes('(healthy)');
+}
+
 // GET /api/minecraft/:server/status -> { container: {found, state}, server: {...}, blockedBy, updatedAt }
 //
 // container.found tells the frontend whether start/stop can do anything —
@@ -107,12 +116,15 @@ async function pingServer(server) {
 // when it's the reason this one can't start.
 router.get('/:server/status', async (req, res) => {
   try {
-    const [containerInfo, server, blocker] = await Promise.all([
+    const [containerInfo, pinged, blocker] = await Promise.all([
       findContainer(req.mcServer),
       pingServer(req.mcServer),
       findRunningOtherServer(req.mcServer).catch(() => null),
     ]);
     const state = containerInfo ? containerInfo.State : 'not_found';
+    const server = !pinged.online && isHealthy(containerInfo)
+      ? { online: true, players: null, maxPlayers: null }
+      : pinged;
 
     res.json({
       container: { found: !!containerInfo, state },
