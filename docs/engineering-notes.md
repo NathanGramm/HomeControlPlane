@@ -336,7 +336,7 @@ worth knowing about if this ever gets redeployed from scratch:
 
 ## Family server
 
-`family-minecraft` is a vanilla server in `~/FamilyServer`, bind-mounted as
+`family-minecraft` is a Paper server in `~/FamilyServer`, bind-mounted as
 `/data` the same way `gtnh-minecraft` is. It's only run now and then, so
 `restart: "no"` keeps it from starting at boot and from holding 3 GB of an
 11 GB host.
@@ -362,20 +362,165 @@ lift the limit, delete `findRunningOtherServer` and its two callers in
 
 **Version: 26.3**, the newest release with a stable Iris shader build for
 Fabric as of 2026-10-30 (Iris 1.11.7, Sodium 0.9.2). It needs Java 25, hence
-the `java25` image tag. Shaders are client-side only, so the server stays
-vanilla; each client needs Fabric plus Iris and Sodium. Install them through
+the `java25` image tag. Shaders are client-side only, so the server needs
+no mods; each client needs Fabric plus Iris and Sodium. Install them through
 the Iris installer or Modrinth rather than picking Sodium by hand, since
-newer Sodium builds can break Iris.
+newer Sodium builds can break Iris. Fabric clients join a Paper server fine.
 
 **The upgrade is one-way.** Minecraft doesn't support opening an upgraded
 world in the older version. The world went to 26.3 on an unplanned stack
 deploy on 2026-10-30, before these profiles existed. For later version
 changes, back up first: `cp -a ~/FamilyServer ~/FamilyServer.bak`.
 
-`server.properties` needs `server-port=25566` (the port players connect to,
-and the one published in the compose file), plus `enable-rcon=true`,
-`rcon.port=25575` and `rcon.password=<RCON_PASSWORD>`. Without RCON, graceful
-stop falls back to the console.
+### Paper, not vanilla
+
+This used to be a Spigot server, with DriveBackupV2 doing its backups. The
+compose file said `TYPE=VANILLA`, so the container ran without loading any
+plugin, and backups silently stopped. It's
+`TYPE=PAPER` now: Paper runs Spigot plugins, and unlike Spigot it has
+download builds the image can fetch on its own.
+
+If the first boot fails with `No build found for version 26.3 with channel
+'default'`, Paper still marks 26.3 as beta: uncomment `PAPER_CHANNEL` in the
+compose file, apply it, and remove it again once 26.3 goes stable.
+
+### First Paper boot: the Nether and the End
+
+Since 26.1, vanilla and Paper both keep every dimension inside the world
+folder, under `world/dimensions/minecraft/` (`overworld`, `the_nether`,
+`the_end`). Spigot kept the Nether and the End in separate `world_nether`
+and `world_the_end` folders next to `world`. When vanilla 26.3 opened the old
+Spigot world, it moved the Overworld into the new layout but never looked at
+`world_nether` or `world_the_end`, so it generated a new, empty Nether and
+End. Every Nether or End trip since the switch to vanilla happened in those.
+
+On its first boot Paper tries to import `world_nether` and `world_the_end`
+into `world/dimensions/minecraft/`. If vanilla's replacements are already
+there, the import stops with `Refusing to overwrite existing migrated file`,
+and the server doesn't start. So decide before the first boot, with the
+server stopped and a fresh `cp -a ~/FamilyServer ~/FamilyServer.bak`:
+
+```bash
+cd ~/FamilyServer   # if level-name isn't "world", use that name below
+ls -d world_nether world_the_end world/dimensions/minecraft/*
+```
+
+- **To get the original Nether and End back** (usually right, unless the
+  family has built a lot there since the switch): move the replacements out, and Paper
+  imports the originals on boot.
+  ```bash
+  mkdir -p ~/FamilyServer-vanilla-dims
+  mv world/dimensions/minecraft/the_nether world/dimensions/minecraft/the_end ~/FamilyServer-vanilla-dims/
+  ```
+- **To keep the replacements**: move `world_nether` and `world_the_end` out
+  of `~/FamilyServer` instead, so Paper has nothing to import.
+
+The log shows `LegacyCraftBukkitWorldMigration` lines during the import.
+Afterwards only `world` remains, so DriveBackupV2's world list needs only
+`world`.
+
+### Who can get in
+
+This is the one service in this file that's port-forwarded to the internet
+(25566), so bots find it within days. They can't get in, because these are
+set in `server.properties`. The image doesn't manage that file here
+(`OVERRIDE_SERVER_PROPERTIES=false`), so set them by hand with the server
+stopped:
+
+```properties
+white-list=true
+# kicks anyone removed from the list while they're online
+enforce-whitelist=true
+# only real, signed-in Minecraft accounts
+online-mode=true
+enforce-secure-profile=true
+# no player names in ping replies
+hide-online-players=true
+enable-query=false
+server-port=25566
+# safe: 25575 is never published, see the compose file
+enable-rcon=true
+rcon.port=25575
+rcon.password=<RCON_PASSWORD>
+```
+
+`server.properties` has no end-of-line comments, so keep each comment on its
+own line.
+
+Operators get in whether or not they're whitelisted, so keep `ops.json` to
+the server's owner. Manage the list from a Portainer exec shell into
+`family-minecraft` (no server restart needed):
+
+```bash
+rcon-cli whitelist add <name>
+rcon-cli whitelist remove <name>
+rcon-cli whitelist list
+```
+
+### Hiding the server from scanners
+
+Pings (the server-list entry) happen before login, so they carry no account.
+"Only whitelisted players can ping" can only mean "only IP addresses a
+whitelisted player has joined from". That's what
+[Anti MOTD Scanner](https://modrinth.com/plugin/anti-motd-scanner) does: it
+answers pings from any other IP with empty data. Joining still works from a
+new IP. The server just looks empty in the list until the first join from
+there.
+
+It doesn't stop traffic reaching the port. Only a firewall or a VPN does
+that, and Tailscale-only access would. The plugin needs ProtocolLib and, as
+of 2026-11-08, lists support up to 26.1, so it may not load on 26.3.
+
+Setup, with the server stopped:
+
+1. Put the newest ProtocolLib build that supports 26.3 and Anti MOTD Scanner
+   in `~/FamilyServer/plugins/`. Remove any other old jars there.
+2. Start the server, then stop it again so the plugin writes its files.
+3. Add `127.0.0.1` on its own line to the plugin's `ipcache.txt`. The
+   image's healthcheck pings from inside the container; if that ping is
+   hidden, the container shows as unhealthy.
+4. Start the server, and have each player join once from home.
+
+To check it works, use a phone on mobile data (not home Wi-Fi) and a Java
+client that has never joined: the server should show no MOTD or players.
+`blocked-motd-logs.txt` fills up with scanner IPs within days.
+
+If the plugin won't load on 26.3, set `enable-status=false` instead. Then
+nobody's client sees a server-list entry, including family, but **Join
+Server** still works. The healthcheck and the dashboard's ping both fail
+then, so the dashboard shows the server as "starting" the whole time it
+runs.
+
+The dashboard pings from its own container's IP, which never joins, so its
+ping may get empty data too. It falls back to Docker's health status, which
+comes from the container's own ping from `127.0.0.1`, and shows "online"
+without a player count.
+
+### Backups
+
+Two layers, because the old setup failed with nobody noticing:
+
+- **Local, every 6 hours while the server runs:** `family-minecraft-backup`
+  ([itzg/mc-backup](https://github.com/itzg/docker-mc-backup)) writes tar
+  files to `~/backups/family-minecraft`, keeping the newest 20 (and nothing
+  older than 90 days). It pauses saving over RCON during each backup, and it
+  doesn't depend on any plugin or server type. It keeps running while the
+  server is stopped and waits for RCON. It takes its first backup once the
+  server is up, then one every 6 hours.
+- **Off-site:** DriveBackupV2 uploads to Google Drive. Update it to 1.8.1
+  or newer, and relink with `/drivebackup linkaccount googledrive` if the log
+  shows auth errors. Test it with `/drivebackup backup`.
+
+Check the local layer after any change:
+
+```bash
+docker logs family-minecraft-backup --tail 20
+ls -lh ~/backups/family-minecraft
+docker exec family-minecraft-backup backup now   # one-off backup
+```
+
+To restore, stop the server, move `~/FamilyServer/world` aside, and extract
+the newest tar into `~/FamilyServer`.
 
 ## Server files
 

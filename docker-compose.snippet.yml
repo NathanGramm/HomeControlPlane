@@ -138,9 +138,12 @@ services:
       - UID=1000
       - GID=1000
 
-  # Vanilla family server — see engineering-notes' "Family server" section
+  # Paper family server — see engineering-notes' "Family server" section
   # before the first boot: upgrading to a newer VERSION is one-way for the
-  # world. Same bind-mount approach as gtnh-minecraft, so there's one copy
+  # world, and the first Paper boot needs the Nether/End check there. Paper,
+  # not vanilla, because the whitelist ping-hiding and DriveBackupV2 are
+  # plugins. This one is port-forwarded to the internet, unlike everything
+  # else in this file. Same bind-mount approach as gtnh-minecraft, so there's one copy
   # of the world. Only run now and then, so it deliberately doesn't start
   # at boot. The profile keeps stack redeploys from starting it, and the
   # existing container stays around for the dashboard, which refuses to run
@@ -158,11 +161,18 @@ services:
       - /home/ncgramm/FamilyServer:/data
     environment:
       - EULA=TRUE
-      - TYPE=VANILLA
+      # Was VANILLA, which silently stopped every plugin (DriveBackupV2
+      # included) from loading. Spigot has no download builds for this image
+      # to fetch; Paper runs the same plugins and does.
+      - TYPE=PAPER
       # Pinned, not LATEST: clients need a matching Iris build before the
       # server moves, and a surprise upgrade can't be undone.
       - VERSION=26.3
-      # 3G is enough for a small vanilla world, and GTNH's 6G on an 11G host
+      # Uncomment only if the log says "No build found for version 26.3 with
+      # channel 'default'", i.e. Paper still marks 26.3 as beta. Remove it
+      # again once Paper ships a stable 26.3 build.
+      # - PAPER_CHANNEL=experimental
+      # 3G is enough for a small world, and GTNH's 6G on an 11G host
       # leaves little more if both run at once.
       - INIT_MEMORY=3G
       - MAX_MEMORY=3G
@@ -175,6 +185,38 @@ services:
       - RCON_PASSWORD=${RCON_PASSWORD:?set in .env}   # internal-only: no RCON port is published below
       - UID=1000
       - GID=1000
+
+  # Local backups of the family server, independent of any plugin. Uses RCON
+  # to pause saving, so the copy is consistent. Not behind the `family`
+  # profile: it's a few MB of RAM, runs all the time, and just waits while
+  # the server is stopped, then backs up once it's up and every
+  # BACKUP_INTERVAL after. DriveBackupV2 (a plugin) is the off-site copy.
+  family-minecraft-backup:
+    image: itzg/mc-backup:latest
+    container_name: family-minecraft-backup
+    restart: unless-stopped
+    environment:
+      - RCON_HOST=family-minecraft
+      - RCON_PORT=25575
+      - RCON_PASSWORD=${RCON_PASSWORD:?set in .env}
+      # Retry forever: the server is off most of the time, and the default
+      # (5 tries) would turn every stopped day into a failed backup.
+      - RCON_RETRIES=-1
+      - RCON_RETRY_INTERVAL=30s
+      - INITIAL_DELAY=2m
+      - BACKUP_INTERVAL=6h
+      - BACKUP_METHOD=tar
+      # Keep by count, not just age: the server can sit unused for weeks, and
+      # an age-only rule would delete every older backup on the next run.
+      - PRUNE_BACKUPS_COUNT=20
+      - PRUNE_BACKUPS_DAYS=90
+      # Left false on purpose: the player check pings the server, and the
+      # ping-hiding plugin may answer this container with empty data.
+      - PAUSE_IF_NO_PLAYERS=false
+      - TZ=America/New_York
+    volumes:
+      - /home/ncgramm/FamilyServer:/data:ro
+      - /home/ncgramm/backups/family-minecraft:/backups
 
   # FileBrowser Quantum, the maintained fork: upstream filebrowser/filebrowser
   # was archived in 2026 and gets no more security fixes. Can write to both
