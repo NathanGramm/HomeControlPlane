@@ -3,7 +3,7 @@ const Docker = require('dockerode');
 // Shared Docker client for all routes. Phase 2 talks to a scoped
 // docker-socket-proxy over TCP (DOCKER_HOST=tcp://docker-socket-proxy:2375)
 // rather than mounting the raw socket into this container — see
-// docker-compose.snippet.yml for why. Falls back to a local socket path for
+// stacks/dashboard/compose.yml for why. Falls back to a local socket path for
 // anyone running this outside that compose stack (e.g. `npm start` on a
 // machine that does have a local Docker daemon).
 function createClient() {

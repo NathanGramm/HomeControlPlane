@@ -26,7 +26,7 @@ this file covers why it's built the way it is and what broke along the way.
   read-only, directly into this container. Phase 2 needed write access to
   start/stop a container, and a writable raw socket mount grants control
   over *every* container on the host, not just Minecraft — too much blast
-  radius for a bug or an exposed endpoint. Instead, `docker-compose.snippet.yml`
+  radius for a bug or an exposed endpoint. Instead, `stacks/dashboard/compose.yml`
   now adds a `docker-socket-proxy` container (Tecnativa's
   `docker-socket-proxy` image) that holds the real socket and exposes only
   list/inspect/start/stop over plain TCP on the internal Docker network.
@@ -92,13 +92,13 @@ server jar is `lwjgl3ify-forgePatches.jar` (re-check the name in the 2.9.0
 zip), and everything — world, mods, config,
 whitelist/ops/bans, `server.properties` — lives flat under
 `~/GTNHServer`. The `gtnh-minecraft` service in
-`docker-compose.snippet.yml` bind-mounts that directory as `/data` as-is
+`stacks/minecraft/compose.yml` bind-mounts that directory as `/data` as-is
 (no copying) and uses `TYPE=CUSTOM` with `JVM_OPTS=-Dfml.readTimeout=180
 @java9args.txt` — reusing the existing args file by reference rather than
 retyping its ~30 `--add-opens` flags, so it can't drift from it later.
 
 **Both blocking values are now confirmed** and filled into
-`docker-compose.snippet.yml`:
+`stacks/minecraft/compose.yml`:
 
 1. **`UID`/`GID`** — `id ncgramm` on the host returned `uid=1000, gid=1000`,
    matching what's set. (`server.properties` is mode `600`, owner-only —
@@ -183,7 +183,7 @@ compounding ways, caught from the container logs:
    ```
    enable-rcon=true
    rcon.port=25575
-   rcon.password=<same value as RCON_PASSWORD in docker-compose.snippet.yml>
+   rcon.password=<same value as RCON_PASSWORD in stacks/minecraft/compose.yml>
    ```
    Once that's live, `docker-socket-proxy` stop→RCON stop should be fast
    and reliable, with the longer `STOP_DURATION` as a safety margin rather
@@ -222,8 +222,8 @@ never fire without it.
 
 **Step 1 — get Firefly itself running:**
 
-1. `cp .env.example .env` and fill in (`.env` is gitignored; Compose reads
-   it automatically and the snippet references each value as `${VAR}`):
+1. Fill in the finance stack's variables (template: `stacks/finance/.env.example`;
+   in Portainer, under the stack's Environment variables):
    - `FIREFLY_DB_PASSWORD` — one value, used by both `firefly-db` and
      `firefly-app`, so they can't drift apart.
    - `FIREFLY_APP_KEY` — exactly 32 characters, no `=` or `#`. Generate with:
@@ -246,7 +246,7 @@ never fire without it.
    Tokens** → create a new token. (Firefly has no account to attach a
    token to before step 4, which is why this can't be provisioned ahead
    of time via env vars the way everything else in this repo is.)
-6. Set `FIREFLY_API_TOKEN` in `.env` to that token's value,
+6. Set `FIREFLY_API_TOKEN` in the dashboard stack's variables to that token's value,
    then `docker compose up -d --force-recreate home-control-plane`.
 7. The dashboard's Finances section should appear (it stays hidden
    whenever `FIREFLY_API_TOKEN` is unset) showing net worth and your 5
@@ -285,7 +285,7 @@ automatic: you download a statement yourself and upload it.
    → OAuth → Personal Access Tokens) — don't reuse the dashboard's
    `FIREFLY_API_TOKEN`. Separate tokens per integration means revoking one
    later doesn't take the other down too.
-2. Set that token as `FIREFLY_IMPORTER_TOKEN` in `.env`, then deploy
+2. Set that token as `FIREFLY_IMPORTER_TOKEN` in the finance stack's variables, then deploy
    `firefly-importer`.
 3. NPM proxy host for `import.marshmallowmc.com` → `<your-server-ip>:8081`,
    plus a Pi-hole DNS record — same pattern as every other hostname here.

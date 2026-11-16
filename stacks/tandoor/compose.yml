@@ -1,0 +1,58 @@
+# Tandoor recipes and its dedicated Postgres.
+services:
+  db_recipes:
+    image: postgres:16-alpine
+    container_name: tandoor_db
+    restart: always
+    volumes:
+      - tandoor_db_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=recipes
+      - POSTGRES_USER=djangouser
+      - POSTGRES_PASSWORD=${TANDOOR_DB_PASSWORD:?set in stack env}
+    # Prevents the web app from starting until the database is healthy
+    healthcheck:
+      test: ["CMD", "pg_isready", "-q", "-d", "recipes", "-U", "djangouser"]
+      timeout: 5s
+      interval: 5s
+      retries: 10
+    networks:
+      - proxy-network
+
+  web_recipes:
+    image: vabene1111/recipes:latest
+    container_name: tandoor_web
+    restart: always
+    ports:
+      - "8123:80"
+    depends_on:
+      db_recipes:
+        condition: service_healthy
+    volumes:
+      - tandoor_staticfiles:/opt/recipes/staticfiles
+      - tandoor_mediafiles:/opt/recipes/mediafiles
+    environment:
+      - SECRET_KEY=${TANDOOR_SECRET_KEY:?set in stack env}
+      - ALLOWED_HOSTS=*
+      - DB_ENGINE=django.db.backends.postgresql
+      - POSTGRES_HOST=db_recipes
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=recipes
+      - POSTGRES_USER=djangouser
+      - POSTGRES_PASSWORD=${TANDOOR_DB_PASSWORD:?set in stack env}
+      - TANDOOR_PORT=80
+      - TIMEZONE=America/New_York
+    networks:
+      - proxy-network
+
+volumes:
+  tandoor_db_data:
+    name: tandoor_tandoor_db_data
+  tandoor_staticfiles:
+    name: tandoor_tandoor_staticfiles
+  tandoor_mediafiles:
+    name: tandoor_tandoor_mediafiles
+
+networks:
+  proxy-network:
+    external: true

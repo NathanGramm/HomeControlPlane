@@ -1,0 +1,13 @@
+# gethomepage.dev start page. Config lives on the host, not in git.
+services:
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: homepage
+    ports:
+      - 3000:3000
+    volumes:
+      - /home/ncgramm/docker/homepage/config:/app/config
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - HOMEPAGE_ALLOWED_HOSTS=*
+    restart: unless-stopped

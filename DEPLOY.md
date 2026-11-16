@@ -1,109 +1,91 @@
-# Deploying Home Control Plane
+# Deploying
 
-You're SSHed into the server, not sitting at it — GitHub as the handoff is
-the right call. Here's the full path from what's on your local machine now
-to it running behind NPM.
+Every service runs as a Portainer stack deployed straight from this repo.
+Each stack is one folder in `stacks/`:
 
-## 1. Push this to GitHub
+| Stack | Containers |
+|-------|------------|
+| [dashboard](stacks/dashboard/compose.yml) | home-control-plane, docker-socket-proxy |
+| [minecraft](stacks/minecraft/compose.yml) | gtnh-minecraft, family-minecraft, file-browser |
+| [finance](stacks/finance/compose.yml) | firefly-db, firefly-app, firefly-cron, firefly-importer |
+| [nginx-proxy-manager](stacks/nginx-proxy-manager/compose.yml) | nginx-proxy-manager |
+| [pihole](stacks/pihole/compose.yml) | pihole |
+| [tandoor](stacks/tandoor/compose.yml) | tandoor_db, tandoor_web |
+| [media](stacks/media/compose.yml) | jellyfin |
+| [rippers](stacks/rippers/compose.yml) | makemkv, handbrake |
+| [homepage](stacks/homepage/compose.yml) | homepage |
 
-From wherever you unzipped the project on your own machine:
+Portainer itself runs outside any stack.
 
-```
-cd home-control-plane
-git init
-git add .
-git commit -m "Phase 1: skeleton, service tiles, vitals"
-```
+A folder with secrets has a `.env.example` listing them. Stacks that need to
+reach each other by container name join the existing external Docker
+network `proxy-network`.
 
-Then either with the `gh` CLI:
+Every named volume has a pinned `name:` that matches the volume already on
+the host. Re-creating a stack under any name keeps its data.
 
-```
-gh repo create home-control-plane --private --source=. --remote=origin --push
-```
+## Adding a stack in Portainer
 
-or manually: create an empty **private** repo on GitHub first, then
+1. Stacks → Add stack → **Repository**.
+2. Repository URL: this repo. Compose path: `stacks/<name>/compose.yml`.
+3. Under **Environment variables**, add every key from that folder's
+   `.env.example`. Compose refuses to start if a required one is missing.
+4. Optional: turn on **GitOps updates** (polling) so a `git push` redeploys
+   only the stacks whose files changed.
+5. Deploy.
 
-```
-git remote add origin git@github.com:<you>/home-control-plane.git
-git push -u origin main
-```
+The minecraft stack's servers sit behind Compose profiles, so a normal
+deploy doesn't create or start them. See the
+[engineering notes](docs/engineering-notes.md#family-server) for how to
+apply compose changes to them.
 
-Private, since this repo will end up describing your internal network
-layout (hostnames, container names) even before any real secrets show up
-in Phase 3.
+## Exposing a service
 
-## 2. Get it onto the server
+- Nginx Proxy Manager: new proxy host, `<name>.marshmallowmc.com` →
+  `<host-ip>:<published-port>`, with the basic-auth access list attached.
+- Pi-hole: local DNS record `<name>.marshmallowmc.com` → server LAN IP.
+- Never port-forward anything except Minecraft.
 
-Two ways — pick whichever fits how you already manage your stack.
+## Migrating the existing stacks to git
 
-**Option A — Portainer's git-based stack (worth knowing about, since
-you're already Portainer-centric):** Stacks → Add stack → Repository. Point
-it at your GitHub repo URL and the compose file (rename or copy
-`docker-compose.snippet.yml` to `docker-compose.yml` at the repo root
-first). Portainer clones and deploys it for you directly — no SSH needed at
-all, and updates later are a "Pull and redeploy" button instead of manual
-git commands.
+Portainer can't turn a web-editor stack into a git stack, so each one is
+deleted and re-added from the repo. The containers are recreated; data in
+named volumes and bind mounts stays.
 
-**Option B — manual, over SSH, if you'd rather see the compose file
-sitting alongside your others:**
+**Before starting:** reach Portainer by IP (`https://<host-ip>:9443`), not
+through NPM, since NPM goes down for a minute during its own step. Have each
+stack's current secret values ready (Portainer → stack → Editor shows them).
 
-```
-ssh <you>@<server>
-cd ~/docker              # wherever your other compose stacks live
-git clone git@github.com:<you>/home-control-plane.git
-cd home-control-plane
-cp docker-compose.snippet.yml docker-compose.yml
-# or merge the `home-control-plane` service into your existing compose file
-```
+### 1. The old dashboard stack (dashboard + minecraft + finance)
 
-## 3. Point it at your real services
+1. Stop both Minecraft servers from the dashboard and wait for *stopped*.
+2. Back up the named volumes:
+   ```bash
+   mkdir -p ~/backups
+   for v in dashboard_firefly_db_data dashboard_firefly_upload dashboard_filebrowser_data; do
+     sudo docker run --rm -v "$v":/v -v ~/backups:/b alpine tar czf "/b/$v.tgz" -C /v .
+   done
+   ```
+3. Delete the `dashboard` stack in Portainer. Check under Volumes that the
+   three volumes above are still there.
+4. Add the finance, minecraft and dashboard stacks, in that order.
+5. Create the Minecraft containers one at a time so both never run at once:
+   add `COMPOSE_PROFILES=family` to the minecraft stack, redeploy, stop the
+   server from the dashboard, then do the same with `gtnh`, then remove the
+   variable.
+6. Open the dashboard and confirm vitals and both Minecraft tiles.
 
-Edit `server/config/services.json` — swap the placeholder hostnames
-(`portainer.marshmallowmc.com` etc.) for your actual Pi-hole entries. Do
-this before the push in step 1, or directly on the server afterward —
-either way, it's a data file, not code, so no rebuild logic depends on it.
+### 2. The other stacks, one at a time
 
-## 4. Build and run
+For each of homepage, rippers, media, tandoor, nginx-proxy-manager, then
+pihole: delete the stack, re-add it from the repo with its secrets, and check
+the service works before moving on.
 
-```
-docker compose up -d --build
-```
-
-(In Portainer: redeploying the stack after an edit does the same thing.)
-
-## 5. Wire up Nginx Proxy Manager
-
-- New Proxy Host → domain `dash.marshmallowmc.com` → forward to
-  `home-control-plane:3000` (the container name and port from the compose
-  file), same pattern as your other services.
-- Access Lists → new list with basic auth (a username/password) → attach it
-  to this proxy host.
-
-## 6. Pi-hole
-
-Add a local DNS record: `dash.marshmallowmc.com` → your server's LAN IP.
-
-## 7. Test
-
-From a Tailscale-connected device, visit `https://dash.marshmallowmc.com` —
-you should hit the NPM basic-auth prompt first, then the dashboard.
-
-## Updating later
-
-```
-git pull
-docker compose up -d --build
-```
-
-Or, on Portainer's git-stack option, just "Pull and redeploy" in the stack
-view — no SSH required after the initial setup. This is the pattern for
-every phase from here on.
-
-## A note on secrets
-
-Every secret (RCON password, Firefly DB password/app key/cron token, both
-Firefly API tokens) lives in `.env`, which is gitignored. Copy
-`.env.example` to `.env` next to the compose file and fill it in; Compose
-substitutes the `${VAR}` references in `docker-compose.snippet.yml`, and
-refuses to start if a required one is missing. On a Portainer git stack,
-enter the same keys under the stack's **Environment variables** instead.
+- **tandoor:** `TANDOOR_DB_PASSWORD` must be the old password exactly.
+  Postgres only reads it when the database is first created, so a new value
+  locks the app out.
+- **pihole last:** while it's down, nothing on the LAN resolves names, which
+  can include the server's own clone from GitHub. If the re-add fails to
+  clone, set the host's DNS fallback to `9.9.9.9` and retry.
+- **rippers:** don't run it mid-rip. HandBrake deletes sources after
+  encoding.

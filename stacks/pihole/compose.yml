@@ -1,0 +1,30 @@
+# Local DNS for *.marshmallowmc.com, plus ad blocking.
+services:
+  pihole:
+    container_name: pihole
+    image: pihole/pihole:latest
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "8089:80/tcp"
+    environment:
+      TZ: 'America/New_York'
+      FTLCONF_webserver_api_password: ${PIHOLE_PASSWORD:?set in stack env}
+    volumes:
+      - 'pihole_config:/etc/pihole'
+      - 'dnsmasq_config:/etc/dnsmasq.d'
+    cap_add:
+      - NET_ADMIN # Required for network performance and optional DHCP features
+    restart: unless-stopped
+    networks:
+      - proxy-network
+
+volumes:
+  pihole_config:
+    name: pihole_pihole_config
+  dnsmasq_config:
+    name: pihole_dnsmasq_config
+
+networks:
+  proxy-network:
+    external: true

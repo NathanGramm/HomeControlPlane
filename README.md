@@ -49,7 +49,7 @@ Manager terminates TLS for each subdomain.
   Manager enforces basic auth, and nothing is port-forwarded to the
   internet.
 - **Secrets stay out of git.** Every password and token comes from a
-  gitignored `.env` file (template: [`.env.example`](.env.example)).
+  stack's Portainer environment variables (templates: `stacks/*/.env.example`).
   Compose refuses to start if a required value is missing.
 - **One token per integration.** The dashboard and the Data Importer use
   separate Firefly tokens, so either can be revoked without breaking the
@@ -78,8 +78,8 @@ server/
   routes/services.js     GET /api/services
   config/services.json   Service tile list
 public/                  The dashboard (index.html, styles.css, app.js)
-docker-compose.snippet.yml   Every container in the stack
-.env.example             Every secret the stack needs, blank
+stacks/<name>/compose.yml    One per Portainer stack; see DEPLOY.md
+stacks/<name>/.env.example   That stack's secrets, blank
 docs/engineering-notes.md    Design decisions and incident write-ups
 DEPLOY.md                Getting it onto a server via GitHub + Portainer
 ```
@@ -96,13 +96,10 @@ npm start          # http://localhost:3000
 
 **On a server:**
 
-```bash
-cp .env.example .env      # fill in values; see comments in the file
-docker compose -f docker-compose.snippet.yml up -d --build
-```
-
-Then point a reverse-proxy host with authentication at port `3001`, and
-edit `server/config/services.json` to match your own hostnames. The full
+Add each folder in `stacks/` as a Portainer git stack (see
+[DEPLOY.md](DEPLOY.md)), point a
+reverse-proxy host with authentication at port `3001`, and edit
+`server/config/services.json` to match your own hostnames. The full
 walkthrough, including Firefly's two-stage token setup, is in
 [DEPLOY.md](DEPLOY.md) and [docs/engineering-notes.md](docs/engineering-notes.md).
 

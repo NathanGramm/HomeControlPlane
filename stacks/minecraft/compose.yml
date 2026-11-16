@@ -1,0 +1,152 @@
+# Minecraft stack: GTNH, the family server, and the file browser for both.
+
+services:
+
+  # GTNH server — see README's "Moving Minecraft into a container" section
+  # before touching this on the real host. Bind-mounts the *existing*
+  # ~/GTNHServer directory as-is (world, mods, config, whitelist, ops,
+  # server.properties, the works) rather than copying anything, so there's
+  # exactly one copy of your world at all times.
+  gtnh-minecraft:
+    profiles: ["gtnh"]   # stack redeploys skip it; see family-minecraft below
+    image: itzg/minecraft-server:java17
+    container_name: gtnh-minecraft
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    stop_grace_period: 600s   # must exceed STOP_DURATION below, or Compose SIGKILLs mid-save
+    ports:
+      - "25564:25564"   # matches server.properties' server-port=25564 — no port-forward/SRV change needed
+    volumes:
+      - /home/ncgramm/GTNHServer:/data
+    environment:
+      - EULA=TRUE
+      # Creates /tmp/minecraft-console-in so `mc-send-to-console <cmd>` works
+      # from a Portainer exec shell (e.g. /fml confirm, /fml cancel).
+      - CREATE_CONSOLE_IN_PIPE=true
+      - TYPE=CUSTOM
+      - CUSTOM_SERVER=/data/lwjgl3ify-forgePatches.jar
+      # GTNH 2.9.0-RC-2 upgrade (from 2.8.4): -Dfml.queryResult=confirm is
+      # REMOVED below for the first boot. That flag also auto-confirms Forge's
+      # "missing registry entries" prompt, which permanently deletes every
+      # block/item/entity from a missing mod out of the world. After the world
+      # has loaded cleanly on 2.9.0, re-add it if you still want the level.dat
+      # fallback auto-accept described next.
+      # Also check CUSTOM_SERVER's jar name matches the file in the 2.9.0 zip.
+      # -Dfml.queryResult=confirm (when present): auto-accepts FML's "backup level.dat is
+      # being used" prompt. That prompt normally waits for someone to type
+      # /fml confirm at an interactive console — which doesn't exist here
+      # — so without this flag a world that ever needs its level.dat
+      # fallback (e.g. after an unclean shutdown) hangs forever at startup
+      # instead of finishing boot.
+      - JVM_OPTS=-Dfml.readTimeout=180 @java9args.txt
+      - EXTRA_ARGS=nogui
+      - INIT_MEMORY=6G
+      - MAX_MEMORY=6G
+      - OVERRIDE_SERVER_PROPERTIES=false   # don't let this image regenerate your existing server.properties
+      # 120s wasn't enough for a real GTNH shutdown+save and caused a forced
+      # kill mid-stop (see README incident log). 480s leaves real headroom;
+      # stop_grace_period above must stay ahead of this.
+      - STOP_DURATION=480
+      - ENABLE_RCON=true
+      # IMPORTANT: OVERRIDE_SERVER_PROPERTIES=false above means this env var
+      # alone does NOT actually enable RCON on the running server — the
+      # image only writes ENABLE_RCON/RCON_PASSWORD into server.properties
+      # when it's allowed to manage that file, which we've told it not to.
+      # server.properties (inherited from the old bare-metal setup, which
+      # never used RCON) must be edited directly, once, to match this value:
+      #   enable-rcon=true
+      #   rcon.port=25575
+      #   rcon.password=<same value as RCON_PASSWORD below>
+      # Without that, mc-server-runner's graceful stop silently falls back
+      # to typing "stop" into the console, which is slower and is what
+      # triggered the forced-kill above.
+      - RCON_PASSWORD=${RCON_PASSWORD:?set in .env}   # internal-only: no RCON port is published below
+      # Confirmed via `id ncgramm` on the host: uid=1000, gid=1000.
+      - UID=1000
+      - GID=1000
+
+  # Vanilla family server — see engineering-notes' "Family server" section
+  # before the first boot: upgrading to a newer VERSION is one-way for the
+  # world. Same bind-mount approach as gtnh-minecraft, so there's one copy
+  # of the world. Only run now and then, so it deliberately doesn't start
+  # at boot. The profile keeps stack redeploys from starting it, and the
+  # existing container stays around for the dashboard, which refuses to run
+  # this and GTNH at the same time. Compose changes to either Minecraft
+  # service only apply with COMPOSE_PROFILES set — see engineering-notes.
+  family-minecraft:
+    profiles: ["family"]
+    image: itzg/minecraft-server:java25
+    container_name: family-minecraft
+    restart: "no"
+    stop_grace_period: 90s   # must exceed STOP_DURATION below, or Compose SIGKILLs mid-save
+    ports:
+      - "25566:25566"   # must match server.properties' server-port=25566; 25564 is taken by gtnh-minecraft
+    volumes:
+      - /home/ncgramm/FamilyServer:/data
+    environment:
+      - EULA=TRUE
+      - TYPE=VANILLA
+      # Pinned, not LATEST: clients need a matching Iris build before the
+      # server moves, and a surprise upgrade can't be undone.
+      - VERSION=26.3
+      # 3G is enough for a small vanilla world, and GTNH's 6G on an 11G host
+      # leaves little more if both run at once.
+      - INIT_MEMORY=3G
+      - MAX_MEMORY=3G
+      - OVERRIDE_SERVER_PROPERTIES=false   # keep the existing level-name, difficulty, etc.
+      - STOP_DURATION=60
+      - ENABLE_RCON=true
+      # Same catch as gtnh-minecraft: server.properties must be edited by
+      # hand to match, since OVERRIDE_SERVER_PROPERTIES=false stops the image
+      # from writing these. See engineering-notes' "Family server" section.
+      - RCON_PASSWORD=${RCON_PASSWORD:?set in .env}   # internal-only: no RCON port is published below
+      - UID=1000
+      - GID=1000
+
+  # FileBrowser Quantum, the maintained fork: upstream filebrowser/filebrowser
+  # was archived in 2026 and gets no more security fixes. Can write to both
+  # server folders, so it stays LAN/Tailscale-only and never gets the Docker
+  # socket. Stop a server before editing its files — see engineering-notes.
+  file-browser:
+    image: ghcr.io/gtsteffaniak/filebrowser:2.0-stable
+    container_name: file-browser
+    restart: unless-stopped
+    ports:
+      - "8082:80"   # NPM proxies files.marshmallowmc.com -> <host-ip>:8082
+    volumes:
+      - /home/ncgramm/GTNHServer:/servers/GTNHServer
+      - /home/ncgramm/FamilyServer:/servers/FamilyServer
+      - filebrowser_data:/home/filebrowser/data
+    configs:
+      - source: filebrowser_config
+        target: /home/filebrowser/config.yaml
+    environment:
+      - FILEBROWSER_CONFIG=/home/filebrowser/config.yaml
+      - FILEBROWSER_ADMIN_PASSWORD=${FILEBROWSER_ADMIN_PASSWORD:?set in .env}
+volumes:
+  filebrowser_data:
+    name: dashboard_filebrowser_data
+
+# Inline rather than a bind-mounted file: Portainer stacks resolve relative
+# paths against its own data folder, where a repo file doesn't exist.
+configs:
+  filebrowser_config:
+    content: |
+      server:
+        cacheDir: /home/filebrowser/data/tmp
+        sources:
+          - path: /servers/GTNHServer
+            config:
+              defaultEnabled: true
+          - path: /servers/FamilyServer
+            config:
+              defaultEnabled: true
+
+# Shared with the other stacks (NPM, Pi-hole, Tandoor already use it), so
+# containers reach each other by name across stacks, e.g. dashboard ->
+# gtnh-minecraft and firefly-app.
+networks:
+  default:
+    name: proxy-network
+    external: true

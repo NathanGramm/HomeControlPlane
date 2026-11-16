@@ -1,0 +1,32 @@
+# Disc ripping pipeline: MakeMKV rips to movies/raw, HandBrake watches raw
+# and encodes into movies/final (deleting the source), which Jellyfin serves.
+services:
+  makemkv:
+    image: jlesage/makemkv
+    container_name: makemkv
+    ports:
+      - "5800:5800"
+    volumes:
+      - /home/user/homelab/makemkv/config:/config:rw
+      - /mnt/storage4t/movies/raw:/output:rw
+    devices:
+      - /dev/dvd:/dev/sr0
+      - /dev/dvd-sg:/dev/sg0
+      - /dev/bluray:/dev/sr1
+      - /dev/bluray-sg:/dev/sg4
+    restart: unless-stopped
+
+  handbrake:
+    image: jlesage/handbrake
+    container_name: handbrake
+    ports:
+      - "5801:5800"
+    volumes:
+      - /home/user/homelab/handbrake/config:/config:rw
+      - /mnt/storage4t/movies/raw:/watch:rw
+      - /mnt/storage4t/movies/final:/output:rw
+    environment:
+      - AUTOMATED_CONVERSION_PRESET=Very Fast 1080p30
+      - AUTOMATED_CONVERSION_FORMAT=mp4
+      - AUTOMATED_CONVERSION_KEEP_SOURCE=0
+    restart: unless-stopped

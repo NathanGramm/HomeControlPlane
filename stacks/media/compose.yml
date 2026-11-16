@@ -1,0 +1,21 @@
+# Jellyfin. Serves what the rippers stack produces in /mnt/storage4t.
+services:
+  jellyfin:
+    image: lscr.io/linuxserver/jellyfin:latest
+    container_name: jellyfin
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
+    volumes:
+      - /home/user/homelab/config/jellyfin:/config
+      - /home/user/homelab/config/cache:/cache
+      - /mnt/storage4t/movies/final:/data/movies
+      - /mnt/storage4t/tv:/data/tv
+    ports:
+      - 8096:8096
+    restart: unless-stopped
+    mem_limit: 1.2g
+    dns:
+      - 9.9.9.9
+      - 8.8.8.8

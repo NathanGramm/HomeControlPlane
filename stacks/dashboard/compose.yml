@@ -1,0 +1,73 @@
+# Dashboard stack: the control-plane app and its scoped Docker API proxy.
+# Built from the repo root (Dockerfile there).
+#
+# Phase 2 change from Phase 1: home-control-plane no longer mounts the
+# Docker socket itself. Instead, docker-socket-proxy holds the real socket
+# and exposes only the specific calls the dashboard needs (list/inspect
+# containers, start, stop) over plain TCP on the internal network — nothing
+# else, and nothing published to the host. If the dashboard ever has a bug
+# or gets exposed, the blast radius is "start/stop this one container," not
+# "full Docker API access." See https://github.com/Tecnativa/docker-socket-proxy
+# for the full list of toggles if you want to expose anything more later.
+
+services:
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:latest
+    container_name: docker-socket-proxy
+    restart: unless-stopped
+    environment:
+      - CONTAINERS=1    # GET/list/inspect — this alone grants no write access
+      # POST must be 1: this proxy's rule order checks POST as a prerequisite
+      # gate BEFORE the ALLOW_START/ALLOW_STOP checks below, so POST=0 was
+      # silently blocking both actions rather than scoping them down as
+      # intended. Every OTHER write action (create, kill, remove, exec, ...)
+      # still has no matching ALLOW_* flag here, so it's still denied by the
+      # proxy's own catch-all — only start/stop are actually reachable.
+      - POST=1
+      - ALLOW_START=1
+      - ALLOW_STOP=1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    # No ports published — reached only by home-control-plane, over the
+    # Docker network they share, at docker-socket-proxy:2375.
+
+  home-control-plane:
+    build: ../..   # repo root; Portainer clones the whole repo
+    container_name: home-control-plane
+    restart: unless-stopped
+    depends_on:
+      - docker-socket-proxy
+    ports:
+      - "3001:3000"   # NPM proxies dash.marshmallowmc.com -> <host-ip>:3001
+    environment:
+      - PORT=3000
+      - DOCKER_HOST=tcp://docker-socket-proxy:2375
+      # Once `gtnh-minecraft` (below) is up, MINECRAFT_HOST is just its
+      # container name — they land on the same default network because
+      # they're defined in this same compose file, so dashboard-to-container
+      # traffic never touches the published port at all. Confirmed via
+      # server.properties: server-port is already set to 25564 (not
+      # Minecraft's 25565 default), matching the port your SRV record
+      # publishes externally — so it's the same 25564 on both sides here.
+      - MINECRAFT_CONTAINER_NAME=gtnh-minecraft
+      - MINECRAFT_HOST=gtnh-minecraft
+      - MINECRAFT_PORT=25564
+      - FAMILY_MINECRAFT_CONTAINER_NAME=family-minecraft
+      - FAMILY_MINECRAFT_HOST=family-minecraft
+      - FAMILY_MINECRAFT_PORT=25566
+      # Same reasoning as MINECRAFT_HOST above — firefly-app's container
+      # name works directly since they share this compose file's network.
+      - FIREFLY_URL=http://firefly-app:8080
+      # Can't be set until Firefly exists and you've logged in once to
+      # create a Personal Access Token from its own UI — see README.
+      # Leaving this blank/unset is fine: the dashboard just hides the
+      # Finances section entirely until a real token is here.
+      - FIREFLY_API_TOKEN=${FIREFLY_API_TOKEN:-}
+
+# Shared with the other stacks (NPM, Pi-hole, Tandoor already use it), so
+# containers reach each other by name across stacks, e.g. dashboard ->
+# gtnh-minecraft and firefly-app.
+networks:
+  default:
+    name: proxy-network
+    external: true
