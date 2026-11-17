@@ -81,3 +81,24 @@ test('bad input is rejected with a readable message', async () => {
   assert.strictEqual(r.status, 400);
   assert.match(r.body.error, /Not enough gold/);
 });
+
+test('routines are validated, and a workout logs through the API', async () => {
+  const routine = { rest: 60, exercises: [{ name: 'Pull-ups', sets: 2, unit: 'reps', min: 3, max: 6, steps: ['Negative', 'Full'], step: 0 }] };
+  let r = await call('POST', '/dailies', { title: 'Pull day', routine });
+  assert.strictEqual(r.status, 200);
+  const d = r.body.state.dailies.find((x) => x.title === 'Pull day');
+  const exId = d.routine.exercises[0].id;
+
+  r = await call('PUT', `/dailies/${d.id}`, { title: 'Pull day', routine: { exercises: [{ ...routine.exercises[0], min: 9 }] } });
+  assert.strictEqual(r.status, 400); // max below min
+  r = await call('POST', `/dailies/${d.id}/workout`, { exercises: [{ exId: 'nope', sets: [1] }] });
+  assert.strictEqual(r.status, 400);
+  r = await call('POST', `/dailies/${d.id}/workout`, { exercises: [{ exId, sets: ['', null] }] });
+  assert.strictEqual(r.status, 400); // nothing entered
+
+  r = await call('POST', `/dailies/${d.id}/workout`, { exercises: [{ exId, step: 1, sets: [4, ''] }] });
+  assert.strictEqual(r.status, 200);
+  assert.ok(r.body.state.dailies.find((x) => x.id === d.id).done);
+  assert.deepStrictEqual(r.body.state.workouts.at(-1).exercises[0].sets, [4]);
+  assert.strictEqual(r.body.state.workouts.at(-1).exercises[0].step, 'Full');
+});

@@ -3,7 +3,7 @@ const path = require('path');
 const crypto = require('crypto');
 const express = require('express');
 const engine = require('../quests/engine');
-const { ACHIEVEMENTS, ITEMS, SETS, metric, seedState } = require('../quests/content');
+const { ACHIEVEMENTS, ITEMS, SETS, metric, seedState, upgradeState } = require('../quests/content');
 
 const { GameError } = engine;
 const FILE = process.env.QUESTS_FILE || path.join(__dirname, '..', '..', 'data', 'quests.json');
@@ -17,6 +17,7 @@ function load() {
   if (state) return state;
   if (fs.existsSync(FILE)) {
     state = JSON.parse(fs.readFileSync(FILE, 'utf8'));
+    if (upgradeState(state)) save();
   } else {
     state = seedState(clock().today);
     save();
@@ -69,6 +70,60 @@ function str(v, max, field, required = false) {
   return v.trim();
 }
 
+const int = (v, lo, hi, field) => {
+  if (!Number.isInteger(v) || v < lo || v > hi) throw new GameError(400, `${field} must be a whole number from ${lo} to ${hi}`);
+  return v;
+};
+
+// A daily's workout routine, or null to remove it. Exercise ids are kept
+// when given, so history still lines up after an edit.
+function parseRoutine(r) {
+  if (r === undefined || r === null) return null;
+  if (typeof r !== 'object' || !Array.isArray(r.exercises) || !r.exercises.length || r.exercises.length > 20) {
+    throw new GameError(400, 'A routine needs 1 to 20 exercises');
+  }
+  const ids = new Set();
+  const exercises = r.exercises.map((e, i) => {
+    const at = `Exercise ${i + 1}`;
+    const name = str(e?.name, 100, `${at} name`, true);
+    if (!name) throw new GameError(400, `${at} needs a name`);
+    let id = typeof e.id === 'string' && /^[\w-]{1,40}$/.test(e.id) ? e.id : crypto.randomUUID().slice(0, 8);
+    if (ids.has(id)) id = crypto.randomUUID().slice(0, 8);
+    ids.add(id);
+    if (!['reps', 'secs'].includes(e.unit)) throw new GameError(400, `${at}: count reps or seconds`);
+    const min = int(e.min, 1, 999, `${at} minimum`);
+    const max = int(e.max, min, 999, `${at} maximum`);
+    if (!Array.isArray(e.steps) || e.steps.length > 10) throw new GameError(400, `${at} can have up to 10 steps`);
+    const steps = e.steps.map((t, j) => str(t, 60, `${at} step ${j + 1}`)).filter(Boolean);
+    const step = steps.length ? int(e.step ?? 0, 0, steps.length - 1, `${at} current step`) : 0;
+    return { id, name, sets: int(e.sets, 1, 10, `${at} sets`), unit: e.unit, min, max, steps, step };
+  });
+  return { rest: int(r.rest ?? 90, 0, 600, 'Rest'), exercises };
+}
+
+// A logged session: [{ exId, step, sets }] for exercises in this daily's routine.
+function parseWorkout(body, daily) {
+  if (!daily) throw new GameError(404, 'No such daily');
+  if (!daily.routine) throw new GameError(400, 'This daily has no routine');
+  const byId = new Map(daily.routine.exercises.map((e) => [e.id, e]));
+  const list = body.exercises;
+  if (!Array.isArray(list) || list.length > 20) throw new GameError(400, 'Bad workout');
+  const seen = new Set();
+  const out = [];
+  for (const e of list) {
+    const ex = byId.get(e?.exId);
+    if (!ex || seen.has(e.exId)) throw new GameError(400, 'Unknown exercise in workout');
+    seen.add(e.exId);
+    if (!Array.isArray(e.sets) || e.sets.length > 10) throw new GameError(400, `${ex.name}: up to 10 sets`);
+    const sets = e.sets.filter((v) => v !== null && v !== '').map((v) => int(v, 0, 9999, `${ex.name} set`));
+    if (!sets.length) continue; // skipped exercise
+    const step = ex.steps.length ? int(e.step ?? ex.step, 0, ex.steps.length - 1, `${ex.name} step`) : 0;
+    out.push({ exId: e.exId, step, sets });
+  }
+  if (!out.length) throw new GameError(400, 'Enter at least one set');
+  return out;
+}
+
 function parseFields(kind, body, s) {
   const out = { title: str(body.title, 200, 'Title', true), notes: str(body.notes, 2000, 'Notes') };
   if (!out.title) throw new GameError(400, 'Title is required');
@@ -87,6 +142,7 @@ function parseFields(kind, body, s) {
       throw new GameError(400, 'Pick at least one day');
     }
     out.days = [...new Set(days)].sort();
+    if ('routine' in body) out.routine = parseRoutine(body.routine);
   }
   if (kind === 'dailies' || kind === 'todos') {
     const list = body.checklist ?? [];
@@ -155,6 +211,10 @@ router.post('/todos/:id/toggle', act((s, req, ctx, ev) => engine.toggleTodo(s, r
 router.post('/:kind/:id/checklist/:index', act((s, req) => {
   if (!['dailies', 'todos'].includes(req.params.kind)) throw new GameError(404, 'Unknown list');
   engine.toggleChecklist(s, req.params.kind, req.params.id, Number(req.params.index));
+}));
+router.post('/dailies/:id/workout', act((s, req, ctx, ev) => {
+  const entries = parseWorkout(req.body || {}, s.dailies.find((d) => d.id === req.params.id));
+  engine.logWorkout(s, req.params.id, entries, ctx, ev);
 }));
 router.post('/rewards/:id/buy', act((s, req, ctx, ev) => engine.buyReward(s, req.params.id, ev)));
 

@@ -58,6 +58,7 @@ function showEvent(e) {
     case 'freeze-used': return toast(`${icon('snowflake')} Used ${e.count} streak freeze${e.count > 1 ? 's' : ''}. Streak saved.`);
     case 'streak-lost': return toast(`Your ${e.streak}-day streak ended. Start a new one today.`, 'bad');
     case 'bought': return toast(`Enjoy: ${esc(e.title)} (&minus;${e.cost} gold)`, 'good');
+    case 'workout': return toast(`${icon('kettlebell')} ${e.replaced ? 'Workout updated' : 'Workout logged'}: ${esc(e.title)}`, 'good');
     default: return null;
   }
 }
@@ -107,6 +108,9 @@ function render() {
         <div class="qb-meta">${diffTag(d.difficulty)}<span>${d.days.length === 7 ? 'Every day' : d.days.map((i) => DAYS[i]).join(' ')}</span>
           ${d.streak ? `<span>${icon('flame')} ${d.streak}</span>` : ''}${d.due ? '' : '<span>Not due today</span>'}</div>
         ${checklist('dailies', d)}
+        ${d.routine ? `<div class="qb-meta"><button class="qb-workout-btn" data-act="workout" data-id="${esc(d.id)}">${icon('kettlebell')} ${
+          S.workouts.some((w) => w.dailyId === d.id && w.day === S.today) ? 'Edit today&rsquo;s workout' : 'Start workout'}</button>
+          <span>${d.routine.exercises.length} exercise${d.routine.exercises.length === 1 ? '' : 's'}</span></div>` : ''}
       </div>
       ${editBtn('dailies', d.id)}
     </div>`).join('') || '<p class="qb-empty">Add something you do every day.</p>';
@@ -212,6 +216,121 @@ function renderCollection() {
   }).join('');
 }
 
+// --- workouts ---
+
+const target = (e) => `${e.sets} &times; ${e.min}&ndash;${e.max} ${e.unit === 'secs' ? 's' : 'reps'}`;
+const fmtSets = (x) => `${x.step ? `${x.step}: ` : ''}${x.sets.join(', ')}${x.unit === 'secs' ? ' s' : ''}`;
+const shortDay = (day) => new Date(`${day}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+// One exercise's past sessions in this daily, newest first.
+const pastSets = (dailyId, exId) => S.workouts.filter((w) => w.dailyId === dailyId)
+  .flatMap((w) => w.exercises.filter((x) => x.exId === exId).map((x) => ({ day: w.day, ...x }))).reverse();
+
+let restTimer = null;
+function stopRest(text) {
+  clearInterval(restTimer);
+  const el = $('qb-rest');
+  if (el && text) el.textContent = text;
+}
+function startRest(secs) {
+  clearInterval(restTimer);
+  const el = $('qb-rest');
+  if (!el || !secs) return;
+  const end = Date.now() + secs * 1000;
+  const tick = () => {
+    const left = Math.ceil((end - Date.now()) / 1000);
+    el.classList.toggle('go', left <= 0);
+    if (left <= 0) {
+      stopRest('Rest over. Next set!');
+      navigator.vibrate?.([200, 100, 200]);
+      return;
+    }
+    el.innerHTML = `Rest <b>${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</b> <button type="button" data-rest-skip>Skip</button>`;
+  };
+  tick();
+  restTimer = setInterval(tick, 250);
+}
+
+function openWorkout(id) {
+  const d = S.dailies.find((x) => x.id === id);
+  if (!d?.routine) return;
+  const logged = S.workouts.find((w) => w.dailyId === id && w.day === S.today);
+  const f = $('qb-edit-form');
+  f.innerHTML = `
+    <h2>${esc(d.title)}</h2>
+    <p class="qb-rest" id="qb-rest" aria-live="polite">Rest ${d.routine.rest} s between sets. The timer starts when you enter a set.</p>
+    ${d.routine.exercises.map((e) => {
+      const past = pastSets(id, e.id).filter((x) => x.day !== S.today);
+      const now = logged?.exercises.find((x) => x.exId === e.id);
+      return `<fieldset class="qb-ex" data-ex="${esc(e.id)}">
+        <legend>${esc(e.name)} <span class="qb-ex-target">${target(e)}</span></legend>
+        ${e.steps.length > 1 ? `<select name="step" aria-label="Progression step for ${esc(e.name)}">${e.steps.map((t, i) =>
+          `<option value="${i}" ${i === e.step ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>` : ''}
+        <div class="qb-sets">${Array.from({ length: e.sets }, (_, i) => `<input type="number" inputmode="numeric" min="0" max="9999"
+          aria-label="${esc(e.name)} set ${i + 1}" placeholder="${past[0]?.sets[i] ?? ''}" value="${now?.sets[i] ?? ''}">`).join('')}</div>
+        <p class="qb-notes">${past[0] ? `Last time (${shortDay(past[0].day)}): ${esc(fmtSets(past[0]))}` : 'First time logging this one.'}</p>
+        ${past.length ? `<details class="qb-done-list"><summary>History (${past.length})</summary><ul class="qb-history">${past.slice(0, 20).map((x) =>
+          `<li><span>${shortDay(x.day)}</span>${esc(fmtSets(x))}</li>`).join('')}</ul></details>` : ''}
+      </fieldset>`;
+    }).join('')}
+    <div class="qb-row qb-dialog-actions">
+      <span class="qb-spacer"></span>
+      <button value="cancel" formnovalidate>Cancel</button>
+      <button value="save" class="qb-primary">${logged ? 'Update workout' : 'Finish workout'}</button>
+    </div>`;
+
+  f.onclick = (ev) => { if (ev.target.closest('[data-rest-skip]')) stopRest('Rest skipped.'); };
+  f.onchange = (ev) => { if (ev.target.closest('.qb-sets') && ev.target.value !== '') startRest(d.routine.rest); };
+  f.onsubmit = async (ev) => {
+    if (ev.submitter?.value !== 'save') return;
+    ev.preventDefault();
+    const exercises = [...f.querySelectorAll('.qb-ex')].map((fs) => ({
+      exId: fs.dataset.ex,
+      step: fs.querySelector('[name=step]') ? Number(fs.querySelector('[name=step]').value) : undefined,
+      sets: [...fs.querySelectorAll('.qb-sets input')].map((i) => (i.value === '' ? null : Number(i.value))),
+    }));
+    if (await api('POST', `/dailies/${id}/workout`, { exercises })) $('qb-dialog').close();
+  };
+  $('qb-dialog').showModal();
+}
+
+const exRow = (e = { name: '', sets: 3, unit: 'reps', min: 8, max: 12, steps: [], step: 0 }) => `
+  <fieldset class="qb-ex-edit" data-id="${esc(e.id || '')}" data-step="${e.step || 0}">
+    <div class="qb-row"><label class="qb-grow">Exercise<input name="ex-name" maxlength="100" required value="${esc(e.name)}"></label>
+      <button type="button" class="qb-icon-btn" data-ex-remove aria-label="Remove ${esc(e.name || 'exercise')}">&times;</button></div>
+    <div class="qb-row qb-ex-nums">
+      <label>Sets<input name="ex-sets" type="number" min="1" max="10" required value="${e.sets}"></label>
+      <label>Min<input name="ex-min" type="number" min="1" max="999" required value="${e.min}"></label>
+      <label>Max<input name="ex-max" type="number" min="1" max="999" required value="${e.max}"></label>
+      <label>Count<select name="ex-unit"><option value="reps">reps</option><option value="secs" ${e.unit === 'secs' ? 'selected' : ''}>seconds</option></select></label>
+    </div>
+    <label>Progression steps, easiest first, one per line<textarea name="ex-steps" rows="3">${esc(e.steps.join('\n'))}</textarea></label>
+  </fieldset>`;
+
+const routineEditor = (r) => `
+  <fieldset class="qb-routine"><legend>Workout routine (optional)</legend>
+    <div id="qb-ex-list">${(r?.exercises || []).map((e) => exRow(e)).join('')}</div>
+    <div class="qb-row"><button type="button" id="qb-ex-add">Add exercise</button>
+      <label class="qb-inline">Rest <input name="rest" type="number" min="0" max="600" value="${r?.rest ?? 90}" class="qb-num"> s between sets</label></div>
+  </fieldset>`;
+
+function readRoutine(f) {
+  const rows = [...f.querySelectorAll('.qb-ex-edit')];
+  if (!rows.length) return null;
+  return {
+    rest: Number(f.elements.rest.value),
+    exercises: rows.map((row) => {
+      const v = (n) => row.querySelector(`[name=${n}]`).value;
+      const steps = v('ex-steps').split('\n').map((t) => t.trim()).filter(Boolean);
+      return {
+        id: row.dataset.id || undefined, name: v('ex-name'), unit: v('ex-unit'),
+        sets: Number(v('ex-sets')), min: Number(v('ex-min')), max: Number(v('ex-max')),
+        steps, step: Math.min(Number(row.dataset.step), Math.max(steps.length - 1, 0)),
+      };
+    }),
+  };
+}
+
 // --- editing ---
 
 function openEditor(kind, id) {
@@ -231,6 +350,7 @@ function openEditor(kind, id) {
       <label class="qb-inline"><input type="checkbox" name="down" ${item.down ? 'checked' : ''}> &minus; button (bad)</label></div>` : ''}
     ${has('days') ? `<fieldset class="qb-days"><legend>Due on</legend>${DAYS.map((d, i) => `<label><input type="checkbox" name="day" value="${i}" ${item.days.includes(i) ? 'checked' : ''}>${d}</label>`).join('')}</fieldset>` : ''}
     ${has('quest') ? `<label>Quest line<select name="questId"><option value="">No quest line</option>${S.quests.map((q) => `<option value="${esc(q.id)}" ${q.id === item.questId ? 'selected' : ''}>${esc(q.title)}</option>`).join('')}</select></label>` : ''}
+    ${has('days') ? routineEditor(item.routine) : ''}
     ${has('checklist') ? `<label>Checklist, one step per line<textarea name="checklist" rows="6">${esc(item.checklist.map((c) => c.text).join('\n'))}</textarea></label>` : ''}
     ${has('cost') ? `<label>Cost in gold<input name="cost" type="number" min="1" required value="${item.cost}"></label>` : ''}
     <div class="qb-row qb-dialog-actions">
@@ -240,6 +360,11 @@ function openEditor(kind, id) {
       <button value="save" class="qb-primary">Save</button>
     </div>`;
 
+  f.onchange = null;
+  f.onclick = (ev) => {
+    if (ev.target.closest('#qb-ex-add')) $('qb-ex-list').insertAdjacentHTML('beforeend', exRow());
+    if (ev.target.closest('[data-ex-remove]')) ev.target.closest('.qb-ex-edit').remove();
+  };
   f.onsubmit = async (ev) => {
     if (ev.submitter?.value !== 'save') return;
     ev.preventDefault();
@@ -247,7 +372,10 @@ function openEditor(kind, id) {
     const body = { title: fd.get('title'), notes: fd.get('notes') };
     if (has('difficulty')) body.difficulty = fd.get('difficulty');
     if (has('buttons')) { body.up = fd.has('up'); body.down = fd.has('down'); }
-    if (has('days')) body.days = fd.getAll('day').map(Number);
+    if (has('days')) {
+      body.days = fd.getAll('day').map(Number);
+      body.routine = readRoutine(f);
+    }
     if (has('quest')) body.questId = fd.get('questId');
     if (has('checklist')) body.checklist = fd.get('checklist').split('\n').map((s) => s.trim()).filter(Boolean);
     if (has('cost')) body.cost = Number(fd.get('cost'));
@@ -275,6 +403,7 @@ document.addEventListener('click', (ev) => {
     if (r && confirm(`Spend ${r.cost} gold on "${r.title}"?`)) api('POST', `/rewards/${id}/buy`);
   }
   if (act === 'edit') openEditor(kind, id);
+  if (act === 'workout') openWorkout(id);
 });
 
 document.querySelectorAll('.qb-add').forEach((form) => {
@@ -292,6 +421,8 @@ document.querySelectorAll('.qb-add').forEach((form) => {
     if (await api('POST', `/${form.dataset.kind}`, body)) form.reset();
   });
 });
+
+$('qb-dialog').addEventListener('close', () => stopRest());
 
 // Pick up the day rollover if the tab is left open overnight.
 document.addEventListener('visibilitychange', () => {

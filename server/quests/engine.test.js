@@ -1,7 +1,7 @@
 const assert = require('node:assert');
 const { test } = require('node:test');
 const engine = require('./engine');
-const { seedState, ACHIEVEMENTS, ITEMS } = require('./content');
+const { seedState, upgradeState, ACHIEVEMENTS, ITEMS } = require('./content');
 
 const MON = '2026-11-16'; // a Monday
 const ctx = (today, hour = 12) => ({ today, hour });
@@ -152,4 +152,38 @@ test('undoing a completion takes back a level-up heal and the day it started', (
   engine.toggleDaily(s, daily, ctx(MON), [], noDrop);
   engine.toggleDaily(s, daily, ctx(MON), [], noDrop);
   assert.strictEqual(s.player.streak, 1);
+});
+
+test('logging a workout completes the daily once, and a re-log replaces the session', () => {
+  const s = fresh();
+  const events = [];
+  engine.logWorkout(s, 'calisthenics', [{ exId: 'pushup', step: 3, sets: [10, 9, 8] }], ctx(MON), events, noDrop);
+  const daily = s.dailies.find((d) => d.id === 'calisthenics');
+  assert.ok(daily.done);
+  const xp = s.player.xp;
+  assert.ok(xp > 0);
+  assert.strictEqual(daily.routine.exercises.find((e) => e.id === 'pushup').step, 3);
+  assert.deepStrictEqual(s.workouts[0].exercises[0], { exId: 'pushup', name: 'Push-ups', step: 'Diamond', unit: 'reps', sets: [10, 9, 8] });
+
+  engine.logWorkout(s, 'calisthenics', [{ exId: 'pushup', step: 3, sets: [12, 12, 12] }], ctx(MON), [], noDrop);
+  assert.strictEqual(s.workouts.length, 1);
+  assert.deepStrictEqual(s.workouts[0].exercises[0].sets, [12, 12, 12]);
+  assert.strictEqual(s.player.xp, xp);
+  assert.strictEqual(s.stats.workouts, 1);
+  engine.checkAchievements(s, ctx(MON), []);
+  assert.ok(s.achievements['workouts-1']);
+});
+
+test('a version 1 board gets starter routines and keeps its own checklist steps', () => {
+  const s = seedState(MON);
+  delete s.workouts;
+  s.version = 1;
+  const cal = s.dailies.find((d) => d.id === 'calisthenics');
+  delete cal.routine;
+  cal.checklist = [{ text: 'Plank: 3 x 30-45 s', done: false }, { text: 'Stretch after', done: false }];
+  assert.ok(upgradeState(s));
+  assert.deepStrictEqual(s.workouts, []);
+  assert.ok(cal.routine.exercises.length);
+  assert.deepStrictEqual(cal.checklist.map((c) => c.text), ['Stretch after']);
+  assert.strictEqual(upgradeState(s), false);
 });

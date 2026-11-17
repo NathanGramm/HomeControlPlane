@@ -297,6 +297,27 @@ function toggleChecklist(state, kind, id, index) {
   step.done = !step.done;
 }
 
+// Logs a session for a daily's routine and completes the daily if it isn't
+// already. One session per daily per day: logging again replaces it, so
+// fixing a typo can't count twice. `entries` is validated by the route:
+// [{ exId, step, sets: [numbers] }], each exId in the routine.
+function logWorkout(state, id, entries, ctx, events, rng = Math.random) {
+  const d = find(state.dailies, id, 'daily');
+  if (!d.routine) throw new GameError(400, 'This daily has no routine');
+  const byId = new Map(d.routine.exercises.map((e) => [e.id, e]));
+  const exercises = entries.map(({ exId, step, sets }) => {
+    const ex = byId.get(exId);
+    ex.step = step; // the routine remembers the step you're on now
+    return { exId, name: ex.name, step: ex.steps[step] || '', unit: ex.unit, sets };
+  });
+  const replaced = state.workouts.some((w) => w.dailyId === id && w.day === ctx.today);
+  state.workouts = state.workouts.filter((w) => !(w.dailyId === id && w.day === ctx.today));
+  state.workouts.push({ dailyId: id, day: ctx.today, exercises });
+  if (!replaced) bump(state, 'workouts');
+  events.push({ type: 'workout', title: d.title, replaced });
+  if (!d.done) toggleDaily(state, id, ctx, events, rng);
+}
+
 function buyReward(state, id, events) {
   const r = find(state.rewards, id, 'reward');
   if (state.player.gold < r.cost) throw new GameError(400, `Not enough gold (need ${r.cost})`);
@@ -330,6 +351,7 @@ module.exports = {
   toggleDaily,
   toggleTodo,
   toggleChecklist,
+  logWorkout,
   buyReward,
   checkAchievements,
 };

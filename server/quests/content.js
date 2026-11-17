@@ -97,6 +97,9 @@ const ACHIEVEMENTS = [
   ...tiers('gold', 'coin', 'goldEarned', (g) => `Earn ${n(g)} gold in total`, [
     [500, 'Pocket money'], [2500, 'Coin purse'], [10000, 'Treasure chest'], [50000, 'Dragon hoard'], [100000, 'Midas touch'],
   ]),
+  ...tiers('workouts', 'kettlebell', 'workouts', (g) => `Log ${n(g)} workout${g > 1 ? 's' : ''}`, [
+    [1, 'First rep'], [10, 'Getting stronger'], [50, 'Iron will'], [100, 'Hundred sessions'], [250, 'Built different'],
+  ]),
   ...tiers('rewards', 'gift', 'rewardsBought', (g) => `Redeem ${g} reward${g > 1 ? 's' : ''}`, [
     [1, 'Treat yourself'], [10, 'Earned it'], [50, 'Connoisseur'], [100, 'Living well'],
   ]),
@@ -133,6 +136,58 @@ for (const a of ACHIEVEMENTS) {
   if (!a.test) a.test = (s, ctx) => metric(s, ctx, a.stat) >= a.goal;
 }
 
+// --- starter workout routines ---
+
+// [name, sets, unit, min, max, progression steps easiest first, starting step]
+const ex = (id, name, sets, unit, min, max, steps, step = 0) => ({ id, name, sets, unit, min, max, steps, step });
+const ROUTINES = {
+  calisthenics: {
+    rest: 90,
+    exercises: [
+      ex('pushup', 'Push-ups', 3, 'reps', 8, 12, ['Incline', 'Knee', 'Full', 'Diamond', 'Archer'], 2),
+      ex('row', 'Rows', 3, 'reps', 8, 12, ['Table, knees bent', 'Table, legs straight', 'Bar', 'Feet-elevated bar']),
+      ex('squat', 'Squats', 3, 'reps', 10, 15, ['Bodyweight', 'Pause at the bottom', 'Split squat', 'Bulgarian split squat', 'Shrimp squat']),
+      ex('pike', 'Pike push-ups', 3, 'reps', 6, 10, ['Pike', 'Feet-elevated pike', 'Wall handstand hold']),
+      ex('plank', 'Plank', 3, 'secs', 30, 45, ['Knee plank', 'Plank', 'Long-lever plank']),
+      ex('hang', 'Dead hang', 3, 'secs', 20, 30, ['Feet-assisted hang', 'Dead hang', 'Active hang'], 1),
+    ],
+  },
+  'core-balance': {
+    rest: 60,
+    exercises: [
+      ex('deadbug', 'Dead bug', 3, 'reps', 8, 12, ['Bent knees', 'Straight legs']),
+      ex('sideplank', 'Side plank (per side)', 3, 'secs', 20, 40, ['From knees', 'Full', 'With leg raise'], 1),
+      ex('bridge', 'Glute bridge', 3, 'reps', 12, 20, ['Two legs', 'Single leg']),
+      ex('birddog', 'Bird dog (per side)', 3, 'reps', 8, 12, ['Bird dog']),
+      ex('balance', 'Single-leg balance (per side)', 2, 'secs', 30, 60, ['Eyes open', 'Eyes closed']),
+    ],
+  },
+};
+const copy = (x) => JSON.parse(JSON.stringify(x));
+
+// The checklist steps the starter routines replace (version 1 seed text).
+const OLD_EXERCISE_STEPS = new Set([
+  'Push-ups: 3 sets, 2 short of failure (knees or incline if needed)', 'Rows (table or bar): 3 x 8-12',
+  'Squats: 3 x 15 (add a pause at the bottom when easy)', 'Pike push-ups: 3 x 6-10', 'Plank: 3 x 30-45 s',
+  'Dead hang (if you have a bar): 3 x 20-30 s', 'Dead bug: 3 x 10', 'Side plank: 3 x 20 s per side',
+  'Glute bridge: 3 x 15', 'Bird dog: 3 x 8 per side', 'Single-leg balance: 30 s per side',
+]);
+
+// Brings a saved board up to the current shape. The two starter workout
+// dailies get their routine, and lose only the checklist steps it replaces.
+function upgradeState(state) {
+  if (state.version >= 2) return false;
+  state.workouts = state.workouts || [];
+  for (const d of state.dailies) {
+    const routine = ROUTINES[d.id];
+    if (!routine || d.routine) continue;
+    d.routine = copy(routine);
+    d.checklist = d.checklist.filter((c) => !OLD_EXERCISE_STEPS.has(c.text));
+  }
+  state.version = 2;
+  return true;
+}
+
 // --- starter board ---
 
 const STRETCH_NOTE = 'Move slowly and breathe. Mild stretch is fine; sharp or pinching pain means stop.';
@@ -146,7 +201,8 @@ function seedState(today) {
   const EVERY_DAY = [0, 1, 2, 3, 4, 5, 6];
 
   return {
-    version: 1,
+    version: 2,
+    workouts: [],
     player: { xp: 0, gold: 0, hp: 50, streak: 0, bestStreak: 0, lastActiveDay: null, freezes: 1, lastCronDay: null, startedDay: today, fainted: false },
     stats: {},
     history: {},
@@ -180,22 +236,10 @@ function seedState(today) {
         "Child's pose, 60 s",
       ], STRETCH_NOTE),
       daily('walk', 'Walk 20+ minutes', 'easy', EVERY_DAY, []),
-      daily('calisthenics', 'Calisthenics: full body', 'hard', [1, 3, 5], [
+      { ...daily('calisthenics', 'Calisthenics: full body', 'hard', [1, 3, 5], [
         'Warm-up: 2 min jumping jacks, 10 arm swings, 10 bodyweight squats',
-        'Push-ups: 3 sets, 2 short of failure (knees or incline if needed)',
-        'Rows (table or bar): 3 x 8-12',
-        'Squats: 3 x 15 (add a pause at the bottom when easy)',
-        'Pike push-ups: 3 x 6-10',
-        'Plank: 3 x 30-45 s',
-        'Dead hang (if you have a bar): 3 x 20-30 s',
-      ], 'Rest 60-90 s between sets. When every set hits the top of its range, make it harder next time.'),
-      daily('core-balance', 'Core and balance', 'medium', [2, 4], [
-        'Dead bug: 3 x 10',
-        'Side plank: 3 x 20 s per side',
-        'Glute bridge: 3 x 15',
-        'Bird dog: 3 x 8 per side',
-        'Single-leg balance: 30 s per side',
-      ]),
+      ], 'Sets 2 short of failure. When every set hits the top of its range, move to the next step.'), routine: copy(ROUTINES.calisthenics) },
+      { ...daily('core-balance', 'Core and balance', 'medium', [2, 4], []), routine: copy(ROUTINES['core-balance']) },
       daily('homelab-check', 'Check the dashboard', 'trivial', EVERY_DAY, [
         'Vitals look normal (RAM headroom)',
         'Minecraft servers are in the state you expect',
@@ -259,4 +303,4 @@ function seedState(today) {
   };
 }
 
-module.exports = { ACHIEVEMENTS, ITEMS, SETS, RARITY_WEIGHTS, metric, seedState };
+module.exports = { ACHIEVEMENTS, ITEMS, SETS, RARITY_WEIGHTS, metric, seedState, upgradeState };
