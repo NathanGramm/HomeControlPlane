@@ -384,6 +384,17 @@ If the first boot fails with `No build found for version 26.3 with channel
 'default'`, Paper still marks 26.3 as beta: uncomment `PAPER_CHANNEL` in the
 compose file, apply it, and remove it again once 26.3 goes stable.
 
+Paper blocks some vanilla exploits that the family's farms rely on: TNT,
+rail and carpet duping, sand duping through end portals, string duping,
+and breaking bedrock with headless pistons. The compose file turns all of
+those back on through a patch (`family_vanilla_exploits`) that the image
+applies to `config/paper-global.yml` on every start. The patch only edits a
+file that exists, so the first Paper boot runs with Paper's defaults and the
+exploits work from the second boot on. Paper lists these settings as
+unsupported, so a Paper update can rename or drop them. If a farm stops
+working after an update, check the `unsupported-settings` section of that
+file.
+
 ### First Paper boot: the Nether and the End
 
 Since 26.1, vanilla and Paper both keep every dimension inside the world

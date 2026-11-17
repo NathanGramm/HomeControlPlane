@@ -119,6 +119,14 @@ services:
       - RCON_PASSWORD=${RCON_PASSWORD:?set in .env}   # internal-only: no RCON port is published below
       - UID=1000
       - GID=1000
+      # Puts back vanilla behavior that Paper "fixes", so the dupe farms work.
+      # Applied at each start, but only to a file that exists: the first Paper
+      # boot creates config/paper-global.yml, so these take effect from the
+      # second boot.
+      - PATCH_DEFINITIONS=/patches/vanilla-exploits.json
+    configs:
+      - source: family_vanilla_exploits
+        target: /patches/vanilla-exploits.json
 
   # Local backups of the family server, independent of any plugin. Uses RCON
   # to pause saving, so the copy is consistent. Not behind the `family`
@@ -179,6 +187,16 @@ volumes:
 # Inline rather than a bind-mounted file: Portainer stacks resolve relative
 # paths against its own data folder, where a repo file doesn't exist.
 configs:
+  # $$ is a literal $ (JSONPath root); a single $ would be read as a Compose variable.
+  family_vanilla_exploits:
+    content: |
+      {"patches": [{"file": "/data/config/paper-global.yml", "ops": [
+        {"$$set": {"path": "$$['unsupported-settings']['allow-piston-duplication']", "value": true}},
+        {"$$set": {"path": "$$['unsupported-settings']['allow-unsafe-end-portal-teleportation']", "value": true}},
+        {"$$set": {"path": "$$['unsupported-settings']['skip-tripwire-hook-placement-validation']", "value": true}},
+        {"$$set": {"path": "$$['unsupported-settings']['allow-headless-pistons']", "value": true}},
+        {"$$set": {"path": "$$['unsupported-settings']['allow-permanent-block-break-exploits']", "value": true}}
+      ]}]}
   filebrowser_config:
     content: |
       server:
