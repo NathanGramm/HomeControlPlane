@@ -156,7 +156,7 @@ code{ font-family:'JetBrains Mono',monospace; font-size:.9em; background:var(--b
   .grid-3, .grid-5{ grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
 @media (max-width:760px){
-  .shell{ grid-template-columns:minmax(0,1fr); }
+  .shell{ grid-template-columns:minmax(0,1fr); grid-template-rows:auto 1fr; } /* else short pages stretch the top bar */
   .sidebar{ position:sticky; height:auto; flex-direction:row; overflow-x:auto; padding:8px; z-index:5; border-right:none; border-bottom:1px solid var(--border); }
   .side-brand{ display:none; }
   .side-link{ flex:none; }
