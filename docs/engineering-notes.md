@@ -560,6 +560,18 @@ files get the server folder's owner (uid 1000), since the dashboard runs as
 root. The dashboard is LAN/Tailscale-only and never port-forwarded, so the
 open Minecraft ports don't expose any of this.
 
+A hijacked Minecraft server is the remaining risk: it shares `proxy-network`
+with the dashboard. `server/docker-guard.js` refuses every request from
+inside Docker except NPM's: other containers' addresses, and each Docker
+network's gateway, which is where a container shows up when it goes out to
+`192.168.4.20:3001`. So NPM's proxy host for `dash.marshmallowmc.com` must
+forward to `home-control-plane` port `3000`. Through `:3001`, NPM is refused
+too. The list refreshes from Docker every 10 seconds. To let another
+container in (an uptime monitor, say), add its name to
+`DASHBOARD_ALLOWED_CONTAINERS`, comma-separated, default
+`nginx-proxy-manager`. `curl localhost:3001` on the host itself is refused
+too; use the LAN address.
+
 The console needs `RCON_PASSWORD` in the dashboard stack too, set to the
 same value as the minecraft stack's. Without it, the log still shows, but
 commands and the online-player list don't work.

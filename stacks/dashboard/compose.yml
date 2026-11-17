@@ -42,7 +42,10 @@ services:
     depends_on:
       - docker-socket-proxy
     ports:
-      - "3001:3000"   # NPM proxies dash.marshmallowmc.com -> <host-ip>:3001
+      # For LAN/Tailscale direct access. NPM must forward dash.marshmallowmc.com to
+      # home-control-plane:3000, not here: other containers that come in through
+      # this port are refused (server/docker-guard.js), and NPM would be too.
+      - "3001:3000"
     networks:
       - default      # proxy-network: NPM, Minecraft, Pi-hole, Jellyfin, Firefly
       - docker-api   # the only way to the Docker proxy

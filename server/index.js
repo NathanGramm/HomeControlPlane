@@ -16,6 +16,8 @@ const PORT = process.env.PORT || 3000;
 // basic auth was removed so the phone app works). Other websites still can't
 // make changes through your browser; see same-site.js.
 app.use(require('./same-site'));
+// Nor can other containers, such as a hijacked Minecraft server; see docker-guard.js.
+app.use(require('./docker-guard')(require('./docker')));
 
 app.use('/api/system', systemRoutes);
 app.use('/api/services', serviceRoutes);

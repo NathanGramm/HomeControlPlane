@@ -57,6 +57,11 @@ Manager terminates TLS for each subdomain.
   Tailscale can use it, and it's never port-forwarded to the internet. Writes
   that another website tries to make through your browser are refused
   (`server/same-site.js`).
+- **Other containers can't use it.** The Minecraft servers face the
+  internet and share a Docker network with the dashboard, so a hijacked
+  server could otherwise call the console or file manager. Only Nginx Proxy
+  Manager may reach the dashboard from inside Docker
+  (`server/docker-guard.js`).
 - **Minecraft is the one exception.** The family server is port-forwarded so
   family can join from home. Only whitelisted, signed-in accounts get in,
   and pings from IPs that no whitelisted player has joined from get no
@@ -86,8 +91,10 @@ server/
   index.js               Express app + static file serving
   docker.js              Shared Docker client (talks to docker-socket-proxy)
   same-site.js           Refuses changes requested by other websites
+  docker-guard.js        Refuses requests from other containers (only NPM gets in)
   routes/system.js       GET /api/system/cpu, /api/system/ram
-  routes/minecraft.js    GET /api/minecraft/:server/status, POST /start, /stop
+  routes/minecraft.js    /api/minecraft/:server: status, start, stop, console, command, players, backups, restore
+  routes/minecraft-files.js  /api/minecraft/:server/files: the file manager
   routes/firefly.js      GET /api/firefly/summary
   routes/services.js     GET /api/services
   routes/pihole.js       GET /api/pihole/summary (Pi-hole v6 API, one reused session)
@@ -117,7 +124,8 @@ npm start          # http://localhost:3000
 
 Add each folder in `stacks/` as a Portainer git stack (see
 [DEPLOY.md](DEPLOY.md)), point a
-reverse-proxy host with authentication at port `3001`, and edit
+reverse-proxy host at `home-control-plane:3000` (the container, not the
+host's port 3001, which refuses requests from other containers), and edit
 `server/config/services.json` to match your own hostnames. The full
 walkthrough, including Firefly's two-stage token setup, is in
 [DEPLOY.md](DEPLOY.md) and [docs/engineering-notes.md](docs/engineering-notes.md).
