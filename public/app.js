@@ -175,7 +175,10 @@ function renderMinecraft(id, data) {
     const detail = v.querySelector('.mc-detail');
     const btn = v.querySelector('.mc-btn');
     const info = v.querySelector('.mc-info');
-    if (stopping) {
+    if (data.restoring) {
+      setPill(pill, 'restoring…', 'warn');
+      detail.textContent = 'Swapping in a backup. Start is locked until it finishes.';
+    } else if (stopping) {
       setPill(pill, 'stopping…', 'warn');
       detail.textContent = 'Saving the world and shutting down. GTNH can take several minutes.';
     } else if (server?.online) {
@@ -201,9 +204,9 @@ function renderMinecraft(id, data) {
     delete btn.dataset.action;
     if (!container.found) {
       btn.textContent = 'Container not found';
-    } else if (stopping) {
+    } else if (stopping || data.restoring) {
       btn.disabled = true;
-      btn.textContent = 'Stopping…';
+      btn.textContent = stopping ? 'Stopping…' : 'Restoring…';
     } else if (container.state === 'running') {
       btn.textContent = 'Stop server';
       btn.dataset.action = 'stop';
@@ -220,7 +223,9 @@ function renderMinecraft(id, data) {
 async function refreshMinecraft(id) {
   if (mcBusy[id]) return; // don't overwrite the "starting…" state mid-action
   try {
-    renderMinecraft(id, await fetchJSON(`/api/minecraft/${id}/status`));
+    const data = await fetchJSON(`/api/minecraft/${id}/status`);
+    renderMinecraft(id, data);
+    document.dispatchEvent(new CustomEvent('mc-status', { detail: { id, data } })); // for minecraft.js
   } catch (err) {
     for (const v of all(`[data-mc="${id}"]`)) {
       setPill(v.querySelector('.mc-pill'), 'error', 'bad');

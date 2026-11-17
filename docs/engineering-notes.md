@@ -540,22 +540,43 @@ ls -lh /mnt/storage4t/backups/family-minecraft
 docker exec family-minecraft-backup backup now   # one-off backup
 ```
 
-To restore, stop the server, move `~/FamilyServer/world` aside, and extract
-the newest tar into `~/FamilyServer`.
+To restore, stop the server and use **Restore** on the Minecraft page's
+Backups tab. It extracts the tar next to the server folder, then swaps in
+only the world folders (`<level-name>`, `_nether`, `_the_end`). The current
+ones move into `<level-name>.before-restore-<time>`, which you delete in the
+Files tab once the restored world looks right. Plugins, mods and config stay
+as they are: backups skip jars, so restoring `mods/` would empty it. The
+extraction needs free space on the server's disk about the size of the
+world, and the root disk is nearly full, so check `df -h ~` first for GTNH.
+If the disk fills up, the restore stops and nothing is swapped.
 
 ## Server files
 
+The Minecraft page has its own file manager (browse, edit text files,
+upload, download, rename, delete). The dashboard mounts both server folders
+read-write for it, and refuses every change while that server is starting,
+running or stopping, or when it can't ask Docker. Reads always work. New
+files get the server folder's owner (uid 1000), since the dashboard runs as
+root. The dashboard is LAN/Tailscale-only and never port-forwarded, so the
+open Minecraft ports don't expose any of this.
+
+The console needs `RCON_PASSWORD` in the dashboard stack too, set to the
+same value as the minecraft stack's. Without it, the log still shows, but
+commands and the online-player list don't work.
+
+FileBrowser below still works and can go once the built-in one has proven
+itself. It's about 50 MB of RAM.
+
 `file-browser` runs [FileBrowser Quantum](https://github.com/gtsteffaniak/filebrowser)
 at `files.marshmallowmc.com`, with `~/GTNHServer` and `~/FamilyServer` as its
-two sources. It's a separate container rather than part of the dashboard, so
-the dashboard stays limited to start/stop. Original File Browser was archived
+two sources. Original File Browser was archived
 in 2026 and gets no more security fixes, so don't swap back to it. The tag is
 pinned to `2.0-stable`; pull it regularly, since this fork ships security
 fixes often.
 
 **Stop a server before editing its files.** A running server can overwrite
 `server.properties` and other config on shutdown, and changing world files
-under it can corrupt them. Nothing enforces this.
+under it can corrupt them. The dashboard enforces this. FileBrowser doesn't.
 
 Setup:
 

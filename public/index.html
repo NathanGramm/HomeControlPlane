@@ -91,20 +91,75 @@
       <header class="page-head"><h1>Minecraft</h1>
         <span class="page-sub">Only one server can run at a time until the RAM upgrade.</span></header>
       <div class="grid-2">
-        <div class="card" data-mc="gtnh">
+        <div class="card mc-pick" data-mc="gtnh" tabindex="0" aria-label="Manage the GTNH server">
           <div class="card-head"><span class="card-label">GTNH server</span><span class="status-pill status-muted mc-pill">&hellip;</span></div>
           <p class="card-hint mc-detail">&nbsp;</p>
           <dl class="kv mc-info"></dl>
           <button class="control-btn mc-btn" disabled>&hellip;</button>
         </div>
-        <div class="card" data-mc="family">
+        <div class="card mc-pick" data-mc="family" tabindex="0" aria-label="Manage the Family server">
           <div class="card-head"><span class="card-label">Family server</span><span class="status-pill status-muted mc-pill">&hellip;</span></div>
           <p class="card-hint mc-detail">&nbsp;</p>
           <dl class="kv mc-info"></dl>
           <button class="control-btn mc-btn" disabled>&hellip;</button>
         </div>
       </div>
-      <p class="card-hint">Edit server files at <a href="https://files.marshmallowmc.com" target="_blank" rel="noopener">files.marshmallowmc.com</a>. Stop a server before editing its files.</p>
+
+      <div class="card mc-manager">
+        <div class="card-head">
+          <span class="card-label" id="mc-title">&nbsp;</span>
+          <div class="tabs" role="tablist">
+            <button role="tab" data-tab="console">Console</button>
+            <button role="tab" data-tab="players">Players</button>
+            <button role="tab" data-tab="files">Files</button>
+            <button role="tab" data-tab="backups">Backups</button>
+          </div>
+        </div>
+
+        <div class="mc-panel" data-panel="console">
+          <pre class="console" id="mc-console" aria-live="off"></pre>
+          <form class="console-input" id="mc-cmd-form">
+            <input id="mc-cmd" autocomplete="off" spellcheck="false" placeholder="Type a command, e.g. say hi or whitelist add Steve" aria-label="Server command">
+            <button class="control-btn" type="submit">Send</button>
+          </form>
+        </div>
+
+        <div class="mc-panel" data-panel="players" hidden>
+          <div class="grid-2" id="mc-players"></div>
+        </div>
+
+        <div class="mc-panel" data-panel="files" hidden>
+          <p class="notice" data-mc-locked hidden>Stop the server to change files. You can still browse and download.</p>
+          <div id="mc-files-browser">
+            <div class="toolbar">
+              <nav class="crumbs" id="mc-crumbs" aria-label="Folder"></nav>
+              <span class="toolbar-gap"></span>
+              <button class="small-btn" data-files="new-file" data-write>New file</button>
+              <button class="small-btn" data-files="new-folder" data-write>New folder</button>
+              <label class="small-btn" data-write>Upload<input type="file" id="mc-upload" multiple hidden></label>
+              <button class="small-btn" data-files="refresh">Refresh</button>
+            </div>
+            <p class="card-hint" id="mc-files-msg"></p>
+            <div class="file-list" id="mc-files"></div>
+          </div>
+          <div id="mc-editor" hidden>
+            <div class="toolbar">
+              <b class="ellipsis" id="mc-editor-name"></b>
+              <span class="toolbar-gap"></span>
+              <button class="control-btn" id="mc-editor-save" data-write>Save</button>
+              <button class="small-btn" id="mc-editor-close">Close</button>
+            </div>
+            <textarea class="editor" id="mc-editor-text" spellcheck="false" aria-label="File contents"></textarea>
+          </div>
+        </div>
+
+        <div class="mc-panel" data-panel="backups" hidden>
+          <p class="notice" data-mc-locked hidden>Stop the server to restore a backup.</p>
+          <p class="notice" id="mc-restore-msg" hidden></p>
+          <p class="card-hint">Backups run every 6 hours while the server is up. Restoring swaps in the backup's world and moves the current one into a <code>before-restore</code> folder, so nothing is lost.</p>
+          <div class="file-list" id="mc-backups"></div>
+        </div>
+      </div>
     </section>
 
     <section class="page" data-page="pihole" hidden>
@@ -160,5 +215,6 @@
 <script src="/nav.js"></script>
 <script src="/charts.js"></script>
 <script src="/app.js"></script>
+<script src="/minecraft.js"></script>
 </body>
 </html>

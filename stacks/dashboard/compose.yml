@@ -48,7 +48,11 @@ services:
       - docker-api   # the only way to the Docker proxy
     volumes:
       - quests_data:/app/data   # the quest board (one JSON file)
-      - /mnt/storage4t/backups:/backups:ro   # Minecraft backups, for the "Last backup" time
+      - /mnt/storage4t/backups:/backups:ro   # Minecraft backups: list, download, restore (read-only is enough)
+      # The Minecraft page's file manager and restore write here. The app only
+      # changes them while that server is stopped. Never port-forward this stack.
+      - /home/ncgramm/GTNHServer:/servers/gtnh
+      - /home/ncgramm/FamilyServer:/servers/family
       - /mnt/storage4t/backups/quests:/quest-backups   # a dated copy of the board each day, last 30 kept
     environment:
       - PORT=3000
@@ -68,6 +72,11 @@ services:
       - FAMILY_MINECRAFT_CONTAINER_NAME=family-minecraft
       - FAMILY_MINECRAFT_HOST=family-minecraft
       - FAMILY_MINECRAFT_PORT=25566
+      - MINECRAFT_DATA_DIR=/servers/gtnh
+      - FAMILY_MINECRAFT_DATA_DIR=/servers/family
+      # Same value as the minecraft stack's RCON_PASSWORD; both servers use it.
+      # Powers the console and player lists. Blank disables those two.
+      - RCON_PASSWORD=${RCON_PASSWORD:-}
       # Same reasoning as MINECRAFT_HOST above — firefly-app's container
       # name works directly since they share this compose file's network.
       - FIREFLY_URL=http://firefly-app:8080
