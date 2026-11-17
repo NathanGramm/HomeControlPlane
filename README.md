@@ -17,6 +17,7 @@ reverse proxy with authentication.
 | **System vitals** | Live CPU load (click for a per-core breakdown) and RAM usage (click for memory per Docker container, largest first). Refreshes every 5 seconds. |
 | **Minecraft control** | One-button start/stop for a modded (GT: New Horizons) Minecraft server running in Docker. The status pill tells apart *stopped*, *starting* (container up, world still loading) and *online*, with player count, version and MOTD. Shutdown goes through RCON, so the world saves cleanly. |
 | **Finances** | Net worth and the five most recent transactions from Firefly III, read through its API. Hidden until an API token is configured. Statements are imported manually through Firefly's Data Importer, so no bank credentials ever reach a third-party aggregator. |
+| **Network and media** | Pi-hole's last 24 hours (block rate, queries, active clients, top blocked domains, and whether blocking is on) and Jellyfin's library counts, what's playing now, and recent additions. Refreshes every 30 seconds. Each card stays hidden until its key is set. |
 | **Quest board** | A game-style tracker at `/quests.html`: habits, dailies with step-by-step checklists (stretch and workout routines included), quest lines for homelab projects, and a reward shop. Completing things earns XP, gold, levels, streaks with freezes, about 90 achievements meant to take years, and collectible item drops. Missed dailies cost health. |
 | **Service tiles** | Links to every other service in the homelab, driven by a JSON file, so adding a tile needs no code change. Each tile also has a direct `IP:port` link for when the reverse proxy or Pi-hole is down. |
 
@@ -77,6 +78,8 @@ server/
   routes/minecraft.js    GET /api/minecraft/:server/status, POST /start, /stop
   routes/firefly.js      GET /api/firefly/summary
   routes/services.js     GET /api/services
+  routes/pihole.js       GET /api/pihole/summary (Pi-hole v6 API, one reused session)
+  routes/jellyfin.js     GET /api/jellyfin/summary
   routes/quests.js       /api/quests: quest board API and input validation
   quests/engine.js       Game rules: XP, gold, HP, streaks, drops, day rollover
   quests/content.js      Achievements, collectibles, and the starter board
@@ -117,6 +120,8 @@ walkthrough, including Firefly's two-stage token setup, is in
 | `FIREFLY_APP_KEY` | Firefly | 32-character encryption key |
 | `FIREFLY_STATIC_CRON_TOKEN` | Firefly + cron | Authenticates the daily cron job |
 | `FIREFLY_API_TOKEN` | Dashboard | Read access to Firefly (optional; hides Finances if blank) |
+| `PIHOLE_API_PASSWORD` | Dashboard | Pi-hole *app password* for the stats card (optional; hides it if blank) |
+| `JELLYFIN_API_KEY` | Dashboard | Jellyfin API key for the library card (optional; hides it if blank) |
 | `FIREFLY_IMPORTER_TOKEN` | Data Importer | Separate Firefly token for statement imports |
 
 Non-secret settings (`MINECRAFT_HOST`, `MINECRAFT_PORT`, `FIREFLY_URL`,
@@ -131,7 +136,7 @@ server, and is closed out before the next one starts.
 - [x] **Phase 2: Minecraft control.** Moved the server from systemd + `screen` into Docker, added start/stop through a scoped socket proxy, and RCON-based graceful shutdown.
 - [x] **Phase 3: Finances.** Firefly III with its own MariaDB, a daily cron companion, a manual statement importer, and a dashboard summary.
 - [x] **Phase 4: Quest board.** A self-hosted, game-style task tracker with habits, dailies, quest lines, rewards, achievements and collectibles. The roadmap below lives there now.
-- [ ] **Phase 5: Pi-hole stats.** Replace the Pi-hole link with a native tile showing queries, block rate and top blocked domains.
+- [x] **Phase 5: Pi-hole and Jellyfin cards.** Pi-hole block rate, queries and top blocked domains; Jellyfin library counts, now playing and recently added.
 - [ ] **Phase 6: Calisthenics tracker.** A routine builder, then session logging, then a feedback engine that adjusts routines based on logged sessions. Each step depends on the previous one. Logged sessions could earn quest board XP.
 
 **Operational follow-ups**

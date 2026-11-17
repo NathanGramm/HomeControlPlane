@@ -6,6 +6,8 @@ const serviceRoutes = require('./routes/services');
 const minecraftRoutes = require('./routes/minecraft');
 const fireflyRoutes = require('./routes/firefly');
 const questRoutes = require('./routes/quests');
+const piholeRoutes = require('./routes/pihole');
+const jellyfinRoutes = require('./routes/jellyfin');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -19,6 +21,8 @@ app.use('/api/services', serviceRoutes);
 app.use('/api/minecraft', minecraftRoutes);
 app.use('/api/firefly', fireflyRoutes);
 app.use('/api/quests', questRoutes);
+app.use('/api/pihole', piholeRoutes);
+app.use('/api/jellyfin', jellyfinRoutes);
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
 

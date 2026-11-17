@@ -21,7 +21,7 @@
     "category": "Infra",
     "url": "https://dns.marshmallowmc.com/admin",
     "directUrl": "http://192.168.4.20:8089/admin",
-    "note": "Native stats tile planned for Phase 5; link-through for now."
+    "note": "DNS and ad blocking. Stats are in Network & Media."
   },
   {
     "id": "files",

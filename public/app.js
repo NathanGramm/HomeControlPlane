@@ -249,6 +249,82 @@ async function refreshFinance() {
   }
 }
 
+const SLOW_POLL_MS = 30000;
+
+function setPill(pill, text, kind) {
+  pill.textContent = text;
+  pill.className = `status-pill status-${kind}`;
+}
+
+// A card stays hidden until its integration has credentials; the section
+// hides when neither does.
+function showCard(card, configured) {
+  card.hidden = !configured;
+  document.getElementById('network-section').hidden =
+    document.getElementById('pihole-card').hidden && document.getElementById('jellyfin-card').hidden;
+}
+
+const statRow = (left, right) =>
+  `<div class="txn-row-head stat-row"><span class="txn-desc mono-ellipsis">${left}</span><span class="txn-date">${right}</span></div>`;
+
+async function refreshPihole() {
+  const body = document.getElementById('pihole-body');
+  const pill = document.getElementById('pihole-pill');
+  try {
+    const d = await fetchJSON('/api/pihole/summary');
+    showCard(document.getElementById('pihole-card'), d.configured);
+    if (!d.configured) return;
+    if (!d.reachable) {
+      setPill(pill, 'unreachable', 'bad');
+      body.innerHTML = '<p class="error">Can&rsquo;t reach Pi-hole. Check the container and the app password.</p>';
+      return;
+    }
+    const on = d.blocking === 'enabled';
+    setPill(pill, on ? 'blocking' : `blocking ${d.blocking || 'unknown'}`, on ? 'good' : 'warn');
+    body.innerHTML = `
+      <p class="networth-amount">${d.percentBlocked}%</p>
+      <p class="stat-line">${d.blockedQueries.toLocaleString()} of ${d.totalQueries.toLocaleString()} queries blocked</p>
+      <p class="stat-line">${d.activeClients} active clients &middot; ${d.domainsOnList.toLocaleString()} domains on blocklists</p>
+      ${d.topBlocked.length ? `<span class="finance-label stat-sub">Top blocked</span>
+        ${d.topBlocked.map((t) => statRow(escapeHtml(t.domain), t.count.toLocaleString())).join('')}` : ''}`;
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function refreshJellyfin() {
+  const body = document.getElementById('jellyfin-body');
+  const pill = document.getElementById('jellyfin-pill');
+  try {
+    const d = await fetchJSON('/api/jellyfin/summary');
+    showCard(document.getElementById('jellyfin-card'), d.configured);
+    if (!d.configured) return;
+    if (!d.reachable) {
+      setPill(pill, 'unreachable', 'bad');
+      body.innerHTML = '<p class="error">Can&rsquo;t reach Jellyfin. Check the container and the API key.</p>';
+      return;
+    }
+    const playing = d.nowPlaying.length;
+    setPill(pill, playing ? `${playing} playing` : 'idle', playing ? 'good' : 'muted');
+    body.innerHTML = `
+      <p class="stat-line"><b>${d.counts.movies.toLocaleString()}</b> movies &middot; <b>${d.counts.shows.toLocaleString()}</b> shows &middot; <b>${d.counts.episodes.toLocaleString()}</b> episodes</p>
+      <span class="finance-label stat-sub">Now playing</span>
+      ${playing
+        ? d.nowPlaying.map((p) => statRow(`${p.paused ? '&#10074;&#10074;' : '&#9654;'} ${escapeHtml(p.title)}`,
+          `${escapeHtml(p.user)}${p.client ? ` &middot; ${escapeHtml(p.client)}` : ''}`)).join('')
+        : '<p class="loading">Nothing playing.</p>'}
+      ${d.recentlyAdded.length ? `<span class="finance-label stat-sub">Recently added</span>
+        ${d.recentlyAdded.map((r) => statRow(escapeHtml(r.name), `${r.year || ''}${r.type === 'Series' ? ' &middot; show' : ''}`)).join('')}` : ''}`;
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function slowTick() {
+  refreshPihole();
+  refreshJellyfin();
+}
+
 async function loadServices() {
   try {
     const services = await fetchJSON('/api/services');
@@ -300,3 +376,6 @@ function tick() {
 tick();
 loadServices();
 setInterval(tick, POLL_MS);
+
+slowTick();
+setInterval(slowTick, SLOW_POLL_MS);

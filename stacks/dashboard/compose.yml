@@ -66,6 +66,12 @@ services:
       # Leaving this blank/unset is fine: the dashboard just hides the
       # Finances section entirely until a real token is here.
       - FIREFLY_API_TOKEN=${FIREFLY_API_TOKEN:-}
+      # Reached by container name over proxy-network. Blank credentials hide
+      # the matching dashboard card.
+      - PIHOLE_URL=http://pihole:80
+      - PIHOLE_API_PASSWORD=${PIHOLE_API_PASSWORD:-}
+      - JELLYFIN_URL=http://jellyfin:8096
+      - JELLYFIN_API_KEY=${JELLYFIN_API_KEY:-}
 
 volumes:
   quests_data:
