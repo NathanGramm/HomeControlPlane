@@ -6,7 +6,7 @@ Each stack is one folder in `stacks/`:
 | Stack | Containers |
 |-------|------------|
 | [dashboard](stacks/dashboard/compose.yml) | home-control-plane, docker-socket-proxy |
-| [minecraft](stacks/minecraft/compose.yml) | gtnh-minecraft, family-minecraft, file-browser |
+| [minecraft](stacks/minecraft/compose.yml) | gtnh-minecraft, family-minecraft, their backups |
 | [finance](stacks/finance/compose.yml) | firefly-db, firefly-app, firefly-cron, firefly-importer |
 | [nginx-proxy-manager](stacks/nginx-proxy-manager/compose.yml) | nginx-proxy-manager |
 | [pihole](stacks/pihole/compose.yml) | pihole |
@@ -54,7 +54,7 @@ dashboard at `http://192.168.4.20:3001` instead. Each tile shows a direct
 - Put the service on `proxy-network` in its compose file.
 - Nginx Proxy Manager: new proxy host, `<name>.marshmallowmc.com` →
   scheme `http`, the **container name** and its **internal** port (e.g.
-  `file-browser:80`, not `192.168.4.20:8082`). NPM can't reach the host's
+  `jellyfin:8096`, not `192.168.4.20:8096`). NPM can't reach the host's
   own IP. SSL tab: the `*.marshmallowmc.com` certificate, Force SSL, HTTP/2.
   Attach the basic-auth access list if the app has no login of its own.
   The certificate is a Let's Encrypt wildcard from a Cloudflare DNS

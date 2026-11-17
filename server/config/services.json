@@ -24,14 +24,6 @@
     "note": "DNS and ad blocking. Stats are in Network & Media."
   },
   {
-    "id": "files",
-    "name": "Server Files",
-    "category": "Infra",
-    "url": "https://files.marshmallowmc.com",
-    "directUrl": "http://192.168.4.20:8082",
-    "note": "Stop a Minecraft server before editing its files."
-  },
-  {
     "id": "firefly",
     "name": "Firefly III",
     "category": "Finance",

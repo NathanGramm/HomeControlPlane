@@ -576,24 +576,6 @@ The console needs `RCON_PASSWORD` in the dashboard stack too, set to the
 same value as the minecraft stack's. Without it, the log still shows, but
 commands and the online-player list don't work.
 
-FileBrowser below still works and can go once the built-in one has proven
-itself. It's about 50 MB of RAM.
-
-`file-browser` runs [FileBrowser Quantum](https://github.com/gtsteffaniak/filebrowser)
-at `files.marshmallowmc.com`, with `~/GTNHServer` and `~/FamilyServer` as its
-two sources. Original File Browser was archived
-in 2026 and gets no more security fixes, so don't swap back to it. The tag is
-pinned to `2.0-stable`; pull it regularly, since this fork ships security
-fixes often.
-
 **Stop a server before editing its files.** A running server can overwrite
 `server.properties` and other config on shutdown, and changing world files
-under it can corrupt them. The dashboard enforces this. FileBrowser doesn't.
-
-Setup:
-
-1. Add `FILEBROWSER_ADMIN_PASSWORD` to the Portainer stack's environment
-   variables and redeploy.
-2. Add an NPM proxy host for `files.marshmallowmc.com` -> `<host-ip>:8082`,
-   with the same access list as the dashboard, and a Pi-hole record for it.
-   Never port-forward it: `server.properties` holds the RCON password.
+under it can corrupt them. The dashboard enforces this.

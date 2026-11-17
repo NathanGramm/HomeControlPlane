@@ -1,4 +1,5 @@
-# Minecraft stack: GTNH, the family server, and the file browser for both.
+# Minecraft stack: GTNH, the family server, and their backups. Their files
+# are managed from the dashboard's Minecraft page.
 
 services:
 
@@ -182,30 +183,6 @@ services:
       - /home/ncgramm/GTNHServer:/data:ro
       - /mnt/storage4t/backups/gtnh-minecraft:/backups
 
-  # FileBrowser Quantum, the maintained fork: upstream filebrowser/filebrowser
-  # was archived in 2026 and gets no more security fixes. Can write to both
-  # server folders, so it stays LAN/Tailscale-only and never gets the Docker
-  # socket. Stop a server before editing its files — see engineering-notes.
-  file-browser:
-    image: ghcr.io/gtsteffaniak/filebrowser:2.0-stable
-    container_name: file-browser
-    restart: unless-stopped
-    ports:
-      - "8082:80"   # NPM proxies files.marshmallowmc.com -> <host-ip>:8082
-    volumes:
-      - /home/ncgramm/GTNHServer:/servers/GTNHServer
-      - /home/ncgramm/FamilyServer:/servers/FamilyServer
-      - filebrowser_data:/home/filebrowser/data
-    configs:
-      - source: filebrowser_config
-        target: /home/filebrowser/config.yaml
-    environment:
-      - FILEBROWSER_CONFIG=/home/filebrowser/config.yaml
-      - FILEBROWSER_ADMIN_PASSWORD=${FILEBROWSER_ADMIN_PASSWORD:?set in .env}
-volumes:
-  filebrowser_data:
-    name: dashboard_filebrowser_data
-
 # Inline rather than a bind-mounted file: Portainer stacks resolve relative
 # paths against its own data folder, where a repo file doesn't exist.
 configs:
@@ -219,17 +196,6 @@ configs:
         {"$$set": {"path": "$$['unsupported-settings']['allow-headless-pistons']", "value": true}},
         {"$$set": {"path": "$$['unsupported-settings']['allow-permanent-block-break-exploits']", "value": true}}
       ]}]}
-  filebrowser_config:
-    content: |
-      server:
-        cacheDir: /home/filebrowser/data/tmp
-        sources:
-          - path: /servers/GTNHServer
-            config:
-              defaultEnabled: true
-          - path: /servers/FamilyServer
-            config:
-              defaultEnabled: true
 
 # Shared with the other stacks (NPM, Pi-hole, Tandoor already use it), so
 # containers reach each other by name across stacks, e.g. dashboard ->
