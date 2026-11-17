@@ -155,7 +155,7 @@ server, and is closed out before the next one starts.
 
 - [ ] Find out why the GTNH world's automated backups stopped, and add a backup job outside the mod that's monitored.
 - [x] Family server backups: they stopped because the server ran as vanilla, so DriveBackupV2 never loaded. It runs on Paper now, with an [mc-backup](https://github.com/itzg/docker-mc-backup) sidecar as a plugin-independent local copy.
-- [ ] Upgrade the Minecraft server to GTNH 2.9.0 (compose changes are prepped).
+- [x] Upgrade the Minecraft server to GTNH 2.9.0.
 - [ ] Add RAM to the host. The 6 GB Minecraft JVM leaves little headroom on 11 GB.
 - [ ] After the RAM upgrade, remove the check that stops `gtnh-minecraft` and `family-minecraft` running together (see the [engineering notes](docs/engineering-notes.md#family-server)).
 
