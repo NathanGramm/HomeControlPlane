@@ -39,8 +39,11 @@ services:
       - docker-socket-proxy
     ports:
       - "3001:3000"   # NPM proxies dash.marshmallowmc.com -> <host-ip>:3001
+    volumes:
+      - quests_data:/app/data   # the quest board (one JSON file); back this up
     environment:
       - PORT=3000
+      - TZ=America/New_York   # the quest board's day rolls over at local midnight
       - DOCKER_HOST=tcp://docker-socket-proxy:2375
       # Once `gtnh-minecraft` (below) is up, MINECRAFT_HOST is just its
       # container name — they land on the same default network because
@@ -63,6 +66,10 @@ services:
       # Leaving this blank/unset is fine: the dashboard just hides the
       # Finances section entirely until a real token is here.
       - FIREFLY_API_TOKEN=${FIREFLY_API_TOKEN:-}
+
+volumes:
+  quests_data:
+    name: dashboard_quests_data
 
 # Shared with the other stacks (NPM, Pi-hole, Tandoor already use it), so
 # containers reach each other by name across stacks, e.g. dashboard ->

@@ -57,6 +57,8 @@ h1,h2{ font-family:'JetBrains Mono',monospace; font-weight:700; margin:0; text-w
 h1{ font-size:26px; }
 
 header{ display:flex; flex-direction:column; gap:4px; }
+.quest-link{ align-self:flex-start; margin-top:6px; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:var(--accent); text-decoration:none; }
+.quest-link:hover{ text-decoration:underline; }
 .eyebrow{
   font-family:'JetBrains Mono',monospace;
   font-size:12px;

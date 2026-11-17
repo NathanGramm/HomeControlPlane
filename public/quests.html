@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1e7a72">
+<title>Quest Board</title>
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/quests.css">
+</head>
+<body>
+  <div class="page qb-page">
+    <header class="qb-header">
+      <div>
+        <a class="eyebrow qb-back" href="/">&larr; Home Control Plane</a>
+        <h1>Quest Board</h1>
+      </div>
+      <span class="qb-today" id="qb-today"></span>
+    </header>
+
+    <section class="qb-player" id="qb-player" aria-live="polite">
+      <p class="loading">Loading&hellip;</p>
+    </section>
+
+    <section class="qb-board">
+      <div class="qb-col qb-habits">
+        <h2 class="section-title">Habits</h2>
+        <div id="qb-habits"></div>
+        <form class="qb-add" data-kind="habits">
+          <input name="title" placeholder="New habit" maxlength="200" aria-label="New habit">
+          <button>Add</button>
+        </form>
+      </div>
+      <div class="qb-col qb-dailies">
+        <h2 class="section-title">Dailies</h2>
+        <div id="qb-dailies"></div>
+        <form class="qb-add" data-kind="dailies">
+          <input name="title" placeholder="New daily" maxlength="200" aria-label="New daily">
+          <button>Add</button>
+        </form>
+      </div>
+      <div class="qb-col qb-quests">
+        <h2 class="section-title">Quests</h2>
+        <div id="qb-quests"></div>
+        <form class="qb-add" data-kind="todos">
+          <input name="title" placeholder="New quest step" maxlength="200" aria-label="New quest step">
+          <select name="questId" id="qb-quest-select" aria-label="Quest line"></select>
+          <button>Add</button>
+        </form>
+        <form class="qb-add" data-kind="quests">
+          <input name="title" placeholder="New quest line" maxlength="200" aria-label="New quest line">
+          <button>Add</button>
+        </form>
+      </div>
+      <div class="qb-col qb-rewards">
+        <h2 class="section-title">Rewards</h2>
+        <div id="qb-rewards"></div>
+        <form class="qb-add" data-kind="rewards">
+          <input name="title" placeholder="New reward" maxlength="200" aria-label="New reward">
+          <input name="cost" type="number" min="1" placeholder="Gold" class="qb-cost-input" aria-label="Cost in gold">
+          <button>Add</button>
+        </form>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="section-title" id="qb-ach-title">Achievements</h2>
+      <div id="qb-achievements"></div>
+    </section>
+
+    <section>
+      <h2 class="section-title" id="qb-col-title">Collection</h2>
+      <div id="qb-collection"></div>
+    </section>
+  </div>
+
+  <dialog id="qb-dialog">
+    <form method="dialog" id="qb-edit-form"></form>
+  </dialog>
+
+  <div class="qb-toasts" id="qb-toasts" aria-live="polite"></div>
+
+  <script src="/quests.js"></script>
+</body>
+</html>

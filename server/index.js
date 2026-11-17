@@ -5,6 +5,7 @@ const systemRoutes = require('./routes/system');
 const serviceRoutes = require('./routes/services');
 const minecraftRoutes = require('./routes/minecraft');
 const fireflyRoutes = require('./routes/firefly');
+const questRoutes = require('./routes/quests');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,6 +18,7 @@ app.use('/api/system', systemRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/minecraft', minecraftRoutes);
 app.use('/api/firefly', fireflyRoutes);
+app.use('/api/quests', questRoutes);
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
