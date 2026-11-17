@@ -63,7 +63,9 @@ a{ color:var(--accent); }
 }
 .side-link:hover{ background:var(--bg); color:var(--ink); }
 .side-link.active{ background:var(--accent-soft); color:var(--accent); font-weight:700; }
-.side-icon{ width:20px; text-align:center; }
+.side-icon{ width:20px; display:grid; place-items:center; }
+.icon{ width:1.1em; height:1.1em; vertical-align:-0.18em; flex:none; }
+.side-icon .icon{ width:18px; height:18px; }
 .main{ padding:20px 24px 24px; min-width:0; }
 .page{ display:flex; flex-direction:column; gap:16px; max-width:1600px; }
 .page-head{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }

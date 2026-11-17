@@ -54,8 +54,8 @@ function showEvent(e) {
     case 'achievement': return toast(`${e.icon} Achievement unlocked: <b>${esc(e.name)}</b>`, 'big');
     case 'drop': return toast(`${e.icon} Found: <b>${esc(e.name)}</b> (${RARITY_LABEL[e.rarity]})`, `drop-${e.rarity}`);
     case 'quest-complete': return toast(`Quest line complete: <b>${esc(e.title)}</b> &middot; +${e.gold} gold`, 'big');
-    case 'freeze-earned': return toast(`❄️ Streak freeze earned (${e.freezes}/3)`, 'good');
-    case 'freeze-used': return toast(`❄️ Used ${e.count} streak freeze${e.count > 1 ? 's' : ''}. Streak saved.`);
+    case 'freeze-earned': return toast(`${icon('snowflake')} Streak freeze earned (${e.freezes}/3)`, 'good');
+    case 'freeze-used': return toast(`${icon('snowflake')} Used ${e.count} streak freeze${e.count > 1 ? 's' : ''}. Streak saved.`);
     case 'streak-lost': return toast(`Your ${e.streak}-day streak ended. Start a new one today.`, 'bad');
     case 'bought': return toast(`Enjoy: ${esc(e.title)} (&minus;${e.cost} gold)`, 'good');
     default: return null;
@@ -81,9 +81,9 @@ function render() {
       <div class="qb-stat"><div class="qb-stat-head"><span>Health</span><span>${p.hp} / ${S.maxHp}</span></div>${bar((p.hp / S.maxHp) * 100, 'hp')}</div>
       <div class="qb-stat"><div class="qb-stat-head"><span>Experience</span><span>${S.level.into} / ${S.level.need}</span></div>${bar((S.level.into / S.level.need) * 100, 'xp')}</div>
       <div class="qb-counters">
-        <span title="Gold">🪙 <b>${p.gold.toLocaleString()}</b></span>
-        <span title="Current streak (best ${p.bestStreak})">🔥 <b>${p.streak}</b> day${p.streak === 1 ? '' : 's'}</span>
-        <span title="Streak freezes: each one saves your streak for a missed day">❄️ <b>${p.freezes}</b>/3</span>
+        <span title="Gold">${icon('coin')} <b>${p.gold.toLocaleString()}</b></span>
+        <span title="Current streak (best ${p.bestStreak})">${icon('flame')} <b>${p.streak}</b> day${p.streak === 1 ? '' : 's'}</span>
+        <span title="Streak freezes: each one saves your streak for a missed day">${icon('snowflake')} <b>${p.freezes}</b>/3</span>
         <span title="Streak bonus on XP and gold">+${Math.min(p.streak, 50)}% bonus</span>
       </div>
     </div>
@@ -105,7 +105,7 @@ function render() {
       <div class="qb-card-body">
         <div class="qb-card-title">${esc(d.title)}</div>${notes(d.notes)}
         <div class="qb-meta">${diffTag(d.difficulty)}<span>${d.days.length === 7 ? 'Every day' : d.days.map((i) => DAYS[i]).join(' ')}</span>
-          ${d.streak ? `<span>🔥 ${d.streak}</span>` : ''}${d.due ? '' : '<span>Not due today</span>'}</div>
+          ${d.streak ? `<span>${icon('flame')} ${d.streak}</span>` : ''}${d.due ? '' : '<span>Not due today</span>'}</div>
         ${checklist('dailies', d)}
       </div>
       ${editBtn('dailies', d.id)}
@@ -151,7 +151,7 @@ function render() {
     <div class="qb-card qb-reward">
       <div class="qb-card-body"><div class="qb-card-title">${esc(r.title)}</div>${notes(r.notes)}</div>
       ${editBtn('rewards', r.id)}
-      <button class="qb-buy ${p.gold >= r.cost ? '' : 'cant'}" data-act="buy" data-id="${esc(r.id)}">🪙 ${r.cost.toLocaleString()}</button>
+      <button class="qb-buy ${p.gold >= r.cost ? '' : 'cant'}" data-act="buy" data-id="${esc(r.id)}">${icon('coin')} ${r.cost.toLocaleString()}</button>
     </div>`).join('') || '<p class="qb-empty">Add something worth working for.</p>';
 
   renderAchievements();

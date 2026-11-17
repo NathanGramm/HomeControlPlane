@@ -379,7 +379,7 @@ async function refreshQuests() {
       <div class="mini-stat"><span>HP ${q.player.hp}/${q.maxHp}</span><div class="meter"><div class="meter-fill" style="width:${(q.player.hp / q.maxHp) * 100}%;background:var(--bad)"></div></div></div>
       <div class="mini-stat"><span>XP ${q.level.into}/${q.level.need}</span><div class="meter"><div class="meter-fill" style="width:${(q.level.into / q.level.need) * 100}%;background:var(--warn)"></div></div></div>
       <p class="ov-line">Dailies: <b>${due.filter((d) => d.done).length}/${due.length}</b> done today</p>
-      <p class="ov-line">🔥 ${q.player.streak} day streak &middot; 🪙 ${n(q.player.gold)}</p>`);
+      <p class="ov-line">${icon('flame')} ${q.player.streak} day streak &middot; ${icon('coin')} ${n(q.player.gold)}</p>`);
   } catch (err) {
     setHtml('quest-ov', '<p class="card-hint">Couldn\'t load the quest board.</p>');
     console.error(err);

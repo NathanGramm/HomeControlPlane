@@ -87,7 +87,7 @@ server/
   quests/engine.js       Game rules: XP, gold, HP, streaks, drops, day rollover
   quests/content.js      Achievements, collectibles, and the starter board
   config/services.json   Service tile list
-public/                  The dashboard (index.html, styles.css, app.js, nav.js for the sidebar, charts.js for the SVG charts)
+public/                  The dashboard (index.html, styles.css, app.js, nav.js for the sidebar, charts.js for the SVG charts, icons.js for the line icons)
 stacks/<name>/compose.yml    One per Portainer stack; see DEPLOY.md
 stacks/<name>/.env.example   That stack's secrets, blank
 docs/engineering-notes.md    Design decisions and incident write-ups

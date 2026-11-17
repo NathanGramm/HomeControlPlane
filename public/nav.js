@@ -2,19 +2,19 @@
 // index.html; the quest board is its own page.
 (() => {
   const LINKS = [
-    ['overview', 'Overview', '🏠', '/#overview'],
-    ['system', 'System', '🖥️', '/#system'],
-    ['minecraft', 'Minecraft', '⛏️', '/#minecraft'],
-    ['pihole', 'Pi-hole', '🛡️', '/#pihole'],
-    ['jellyfin', 'Jellyfin', '🎬', '/#jellyfin'],
-    ['finance', 'Finance', '💰', '/#finance'],
-    ['services', 'Services', '🔗', '/#services'],
-    ['quests', 'Quest board', '⚔️', '/quests.html'],
+    ['overview', 'Overview', 'home', '/#overview'],
+    ['system', 'System', 'server', '/#system'],
+    ['minecraft', 'Minecraft', 'pickaxe', '/#minecraft'],
+    ['pihole', 'Pi-hole', 'shield', '/#pihole'],
+    ['jellyfin', 'Jellyfin', 'film', '/#jellyfin'],
+    ['finance', 'Finance', 'wallet', '/#finance'],
+    ['services', 'Services', 'link', '/#services'],
+    ['quests', 'Quest board', 'swords', '/quests.html'],
   ];
   const nav = document.getElementById('sidebar');
   nav.innerHTML = `
     <a class="side-brand" href="/#overview"><span class="eyebrow">marshmallowmc</span><span class="side-title">Control Plane</span></a>
-    ${LINKS.map(([id, label, icon, href]) => `<a class="side-link" data-nav="${id}" href="${href}"><span class="side-icon" aria-hidden="true">${icon}</span>${label}</a>`).join('')}`;
+    ${LINKS.map(([id, label, icon, href]) => `<a class="side-link" data-nav="${id}" href="${href}"><span class="side-icon">${window.icon(icon)}</span>${label}</a>`).join('')}`;
 
   function markActive() {
     const current = location.pathname.endsWith('quests.html') ? 'quests' : (location.hash.slice(1) || 'overview');
