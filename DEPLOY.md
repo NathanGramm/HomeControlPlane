@@ -46,8 +46,14 @@ dashboard at `http://192.168.4.20:3001` instead. Each tile shows a direct
 
 ## Exposing a service
 
+- Put the service on `proxy-network` in its compose file.
 - Nginx Proxy Manager: new proxy host, `<name>.marshmallowmc.com` →
-  `<host-ip>:<published-port>`, with the basic-auth access list attached.
+  scheme `http`, the **container name** and its **internal** port (e.g.
+  `file-browser:80`, not `192.168.4.20:8082`). NPM can't reach the host's
+  own IP. SSL tab: the `*.marshmallowmc.com` certificate, Force SSL, HTTP/2.
+  Attach the basic-auth access list if the app has no login of its own.
+  The certificate is a Let's Encrypt wildcard from a Cloudflare DNS
+  challenge, and NPM renews it automatically.
 - Pi-hole: local DNS record `<name>.marshmallowmc.com` → server LAN IP.
 - Dashboard tile: add it to `server/config/services.json` with `url` (the
   subdomain) and `directUrl` (`http://192.168.4.20:<port>`).
