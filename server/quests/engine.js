@@ -318,6 +318,45 @@ function logWorkout(state, id, entries, ctx, events, rng = Math.random) {
   if (!d.done) toggleDaily(state, id, ctx, events, rng);
 }
 
+// --- workout feedback ---
+
+const total = (x) => x.sets.reduce((a, b) => a + b, 0);
+
+// What to do next time for one exercise, from its past sessions (newest
+// first, today excluded). `step` is the progression step to preselect, so
+// following the advice is one tap and ignoring it is too.
+function adviseExercise(ex, past) {
+  const cur = ex.steps[ex.step] || '';
+  const atStep = past.filter((x) => x.step === cur);
+  const [last, prev, older] = atStep;
+  const more = ex.unit === 'secs' ? '5 more seconds' : 'one more rep';
+  if (!last) {
+    return past.length ? { type: 'new', text: 'New step: find where you are and log it.', step: ex.step } : null;
+  }
+  if (last.sets.length >= ex.sets && last.sets.every((v) => v >= ex.max)) {
+    return ex.step < ex.steps.length - 1
+      ? { type: 'up', text: `Every set hit ${ex.max} last time. Move up to ${ex.steps[ex.step + 1]}.`, step: ex.step + 1 }
+      : { type: 'up', text: `Every set hit ${ex.max} on the last step. Add a set or slow the tempo.`, step: ex.step };
+  }
+  const short = (x) => x && x.sets.some((v) => v < ex.min);
+  if (short(last) && short(prev)) {
+    return ex.step > 0
+      ? { type: 'down', text: `Under ${ex.min} two sessions running. Drop back to ${ex.steps[ex.step - 1]} and build up again.`, step: ex.step - 1 }
+      : { type: 'down', text: `Under ${ex.min} two sessions running. Lower the range in the routine until it's reachable.`, step: ex.step };
+  }
+  if (older && total(last) <= total(older) && total(prev) <= total(older)) {
+    return { type: 'stall', text: 'No progress in 3 sessions. Take an extra rest day, sleep more, or check your form.', step: ex.step };
+  }
+  return { type: 'push', text: `Beat last time (${last.sets.join(', ')}): add ${more} to your weakest set.`, step: ex.step };
+}
+
+// Advice for every exercise in a daily's routine, keyed by exercise id.
+function workoutAdvice(state, daily, today) {
+  const sessions = state.workouts.filter((w) => w.dailyId === daily.id && w.day !== today).reverse();
+  return Object.fromEntries(daily.routine.exercises.map((ex) => [ex.id,
+    adviseExercise(ex, sessions.flatMap((w) => w.exercises.filter((x) => x.exId === ex.id)))]));
+}
+
 function buyReward(state, id, events) {
   const r = find(state.rewards, id, 'reward');
   if (state.player.gold < r.cost) throw new GameError(400, `Not enough gold (need ${r.cost})`);
@@ -352,6 +391,8 @@ module.exports = {
   toggleTodo,
   toggleChecklist,
   logWorkout,
+  adviseExercise,
+  workoutAdvice,
   buyReward,
   checkAchievements,
 };

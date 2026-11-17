@@ -187,3 +187,38 @@ test('a version 1 board gets starter routines and keeps its own checklist steps'
   assert.deepStrictEqual(cal.checklist.map((c) => c.text), ['Stretch after']);
   assert.strictEqual(upgradeState(s), false);
 });
+
+test('workout advice: move up, drop back, stall, push, and nothing on day one', () => {
+  const ex = { id: 'p', sets: 3, unit: 'reps', min: 8, max: 12, steps: ['Knee', 'Full', 'Diamond'], step: 1 };
+  const s = (step, sets) => ({ step, sets });
+  assert.strictEqual(engine.adviseExercise(ex, []), null);
+  assert.strictEqual(engine.adviseExercise(ex, [s('Knee', [12, 12, 12])]).type, 'new');
+
+  let a = engine.adviseExercise(ex, [s('Full', [12, 13, 12])]);
+  assert.deepStrictEqual([a.type, a.step], ['up', 2]);
+  assert.match(a.text, /Diamond/);
+  // Missing a set doesn't count as hitting the top.
+  assert.strictEqual(engine.adviseExercise(ex, [s('Full', [12, 12])]).type, 'push');
+  a = engine.adviseExercise({ ...ex, step: 2 }, [s('Diamond', [12, 12, 12])]);
+  assert.deepStrictEqual([a.type, a.step], ['up', 2]);
+
+  a = engine.adviseExercise(ex, [s('Full', [9, 7, 6]), s('Full', [8, 7, 6])]);
+  assert.deepStrictEqual([a.type, a.step], ['down', 0]);
+  assert.strictEqual(engine.adviseExercise(ex, [s('Full', [9, 7, 6]), s('Full', [10, 9, 8])]).type, 'push');
+
+  a = engine.adviseExercise(ex, [s('Full', [10, 9, 8]), s('Full', [9, 9, 9]), s('Full', [10, 9, 9])]);
+  assert.strictEqual(a.type, 'stall');
+  a = engine.adviseExercise({ ...ex, unit: 'secs', min: 20, max: 45 }, [s('Full', [30, 25, 20])]);
+  assert.deepStrictEqual([a.type, a.step], ['push', 1]);
+  assert.match(a.text, /5 more seconds/);
+});
+
+test('workout advice ignores today and other dailies', () => {
+  const s = fresh();
+  const tue = engine.addDays(MON, 1);
+  engine.logWorkout(s, 'calisthenics', [{ exId: 'pushup', step: 2, sets: [12, 12, 12] }], ctx(MON), [], noDrop);
+  engine.logWorkout(s, 'calisthenics', [{ exId: 'pushup', step: 2, sets: [5, 5, 5] }], ctx(tue), [], noDrop);
+  const daily = s.dailies.find((d) => d.id === 'calisthenics');
+  assert.strictEqual(engine.workoutAdvice(s, daily, tue).pushup.type, 'up');
+  assert.strictEqual(engine.workoutAdvice(s, daily, tue).row, null);
+});

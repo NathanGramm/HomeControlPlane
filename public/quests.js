@@ -262,12 +262,18 @@ function openWorkout(id) {
     ${d.routine.exercises.map((e) => {
       const past = pastSets(id, e.id).filter((x) => x.day !== S.today);
       const now = logged?.exercises.find((x) => x.exId === e.id);
+      const advice = d.advice?.[e.id];
+      // A new session starts on the suggested step; editing today's keeps what you logged.
+      const pick = logged ? e.step : (advice?.step ?? e.step);
+      // Numbers to beat come only from the step you're about to do.
+      const beat = past.find((x) => x.step === (e.steps[pick] || ''));
       return `<fieldset class="qb-ex" data-ex="${esc(e.id)}">
         <legend>${esc(e.name)} <span class="qb-ex-target">${target(e)}</span></legend>
         ${e.steps.length > 1 ? `<select name="step" aria-label="Progression step for ${esc(e.name)}">${e.steps.map((t, i) =>
-          `<option value="${i}" ${i === e.step ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>` : ''}
+          `<option value="${i}" ${i === pick ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>` : ''}
         <div class="qb-sets">${Array.from({ length: e.sets }, (_, i) => `<input type="number" inputmode="numeric" min="0" max="9999"
-          aria-label="${esc(e.name)} set ${i + 1}" placeholder="${past[0]?.sets[i] ?? ''}" value="${now?.sets[i] ?? ''}">`).join('')}</div>
+          aria-label="${esc(e.name)} set ${i + 1}" placeholder="${beat?.sets[i] ?? ''}" value="${now?.sets[i] ?? ''}">`).join('')}</div>
+        ${advice ? `<p class="qb-advice qb-advice-${advice.type}">${esc(advice.text)}</p>` : ''}
         <p class="qb-notes">${past[0] ? `Last time (${shortDay(past[0].day)}): ${esc(fmtSets(past[0]))}` : 'First time logging this one.'}</p>
         ${past.length ? `<details class="qb-done-list"><summary>History (${past.length})</summary><ul class="qb-history">${past.slice(0, 20).map((x) =>
           `<li><span>${shortDay(x.day)}</span>${esc(fmtSets(x))}</li>`).join('')}</ul></details>` : ''}

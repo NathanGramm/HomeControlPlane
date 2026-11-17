@@ -46,7 +46,9 @@ function view(s, ctx) {
     today: ctx.today,
     level: engine.levelInfo(s.player.xp),
     maxHp: engine.MAX_HP,
-    dailies: s.dailies.map((d) => ({ ...d, due: engine.isDue(d, ctx.today) })),
+    dailies: s.dailies.map((d) => ({
+      ...d, due: engine.isDue(d, ctx.today), advice: d.routine ? engine.workoutAdvice(s, d, ctx.today) : undefined,
+    })),
     catalogue: {
       achievements: ACHIEVEMENTS.map((a) => ({
         id: a.id, name: a.name, icon: a.icon, desc: a.desc, secret: !!a.secret, goal: a.goal || null, progress: a.stat ? metric(s, ctx, a.stat) : null,
