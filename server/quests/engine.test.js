@@ -129,3 +129,27 @@ test('level curve: 100 XP to level 2, 150 more to level 3', () => {
   assert.deepStrictEqual(engine.levelInfo(0), { level: 1, into: 0, need: 100 });
   assert.deepStrictEqual(engine.levelInfo(250), { level: 3, into: 0, need: 200 });
 });
+
+test('undoing a completion takes back a level-up heal and the day it started', () => {
+  const s = fresh();
+  s.player.xp = 95; // 5 XP short of level 2
+  s.player.hp = 5;
+  const daily = s.dailies[0].id;
+  engine.toggleDaily(s, daily, ctx(MON), [], noDrop);
+  assert.strictEqual(s.player.hp, engine.MAX_HP);
+  assert.strictEqual(s.player.streak, 1);
+
+  engine.toggleDaily(s, daily, ctx(MON), [], noDrop);
+  assert.strictEqual(s.player.hp, 5);
+  assert.strictEqual(s.player.xp, 95);
+  assert.strictEqual(s.player.streak, 0);
+  assert.strictEqual(s.player.lastActiveDay, null);
+  assert.strictEqual(s.stats.activeDays, 0);
+  assert.deepStrictEqual(s.history, {});
+
+  // With another task still done today, the day stays active.
+  engine.toggleDaily(s, s.dailies[1].id, ctx(MON), [], noDrop);
+  engine.toggleDaily(s, daily, ctx(MON), [], noDrop);
+  engine.toggleDaily(s, daily, ctx(MON), [], noDrop);
+  assert.strictEqual(s.player.streak, 1);
+});

@@ -28,7 +28,7 @@ The overview page shows a short card for each area and fits a 1920x1080 browser 
 
 ```mermaid
 flowchart LR
-    user([Browser on LAN / Tailscale]) --> npm[Nginx Proxy Manager<br/>TLS + basic auth]
+    user([Browser on LAN / Tailscale]) --> npm[Nginx Proxy Manager<br/>TLS]
     npm --> hcp[home-control-plane<br/>Node.js / Express]
     hcp -->|list / inspect / start / stop only| proxy[docker-socket-proxy]
     proxy -->|read-only mount| sock[(Docker socket)]
@@ -47,12 +47,16 @@ Manager terminates TLS for each subdomain.
 
 - **No raw Docker socket in the app.** The dashboard talks to
   [docker-socket-proxy](https://github.com/Tecnativa/docker-socket-proxy),
-  which exposes only list, inspect, start and stop. A bug in the dashboard
-  can at worst start or stop a container. It can't create, exec into or
-  delete anything.
-- **Auth lives at the edge.** The app has no login code. Nginx Proxy
-  Manager enforces basic auth, and nothing is port-forwarded to the
-  internet.
+  which exposes only list, inspect, start and stop. It can't create, exec
+  into or delete anything. Inspect still shows every container's
+  environment (so every stack's passwords), so the proxy sits on a private
+  `docker-api` network that only the dashboard joins, never on the shared
+  `proxy-network`.
+- **No login, but no cross-site writes.** The dashboard has no login (NPM's
+  basic auth was removed so the phone app works), so anyone on the LAN or
+  Tailscale can use it, and nothing is port-forwarded to the internet. Writes
+  that another website tries to make through your browser are refused
+  (`server/same-site.js`).
 - **Secrets stay out of git.** Every password and token comes from a
   stack's Portainer environment variables (templates: `stacks/*/.env.example`).
   Compose refuses to start if a required value is missing.
@@ -77,6 +81,7 @@ Manager terminates TLS for each subdomain.
 server/
   index.js               Express app + static file serving
   docker.js              Shared Docker client (talks to docker-socket-proxy)
+  same-site.js           Refuses changes requested by other websites
   routes/system.js       GET /api/system/cpu, /api/system/ram
   routes/minecraft.js    GET /api/minecraft/:server/status, POST /start, /stop
   routes/firefly.js      GET /api/firefly/summary

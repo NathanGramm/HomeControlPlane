@@ -76,19 +76,25 @@ function rollDrop(state, rng, events) {
 }
 
 // Marks today as active and advances the streak. Called on every positive action.
+// On the day's first action it returns what it changed, so an undo can put it back.
 function markActive(state, ctx, events) {
   const p = state.player;
   state.history[ctx.today] = (state.history[ctx.today] || 0) + 1;
-  if (p.lastActiveDay === ctx.today) return;
+  if (p.lastActiveDay === ctx.today) return null;
+  const prev = { streak: p.streak, bestStreak: p.bestStreak, lastActiveDay: p.lastActiveDay, freezes: p.freezes, fullWeekend: false };
   p.streak = p.lastActiveDay === addDays(ctx.today, -1) ? p.streak + 1 : 1;
   p.lastActiveDay = ctx.today;
   p.bestStreak = Math.max(p.bestStreak, p.streak);
   bump(state, 'activeDays');
-  if (weekday(ctx.today) === 0 && state.history[addDays(ctx.today, -1)]) bump(state, 'fullWeekends');
+  if (weekday(ctx.today) === 0 && state.history[addDays(ctx.today, -1)]) {
+    bump(state, 'fullWeekends');
+    prev.fullWeekend = true;
+  }
   if (p.streak % 7 === 0 && p.freezes < MAX_FREEZES) {
     p.freezes += 1;
     events.push({ type: 'freeze-earned', freezes: p.freezes });
   }
+  return prev;
 }
 
 function gain(state, difficulty, ctx, rng, events) {
@@ -98,6 +104,7 @@ function gain(state, difficulty, ctx, rng, events) {
   const xp = Math.round(10 * mult * bonus);
   const gold = Math.round(5 * mult * bonus);
   const before = levelInfo(p.xp).level;
+  const hpBefore = p.hp;
   p.xp += xp;
   p.gold += gold;
   bump(state, 'goldEarned', gold);
@@ -114,8 +121,12 @@ function gain(state, difficulty, ctx, rng, events) {
     p.hp = MAX_HP;
     events.push({ type: 'level', level: after });
   }
-  markActive(state, ctx, events);
-  return { xp, gold, drop: rollDrop(state, rng, events) };
+  const award = { xp, gold, day: ctx.today };
+  if (after > before) award.healed = MAX_HP - hpBefore;
+  const prev = markActive(state, ctx, events);
+  if (prev) award.prev = prev;
+  award.drop = rollDrop(state, rng, events);
+  return award;
 }
 
 // Reverses a completion exactly, so toggling can't farm XP, gold or items.
@@ -128,6 +139,21 @@ function refund(state, award) {
   if (award.drop && state.collection[award.drop]) {
     state.collection[award.drop] -= 1;
     if (!state.collection[award.drop]) delete state.collection[award.drop];
+  }
+  // Take back a level-up's heal, but never faint from an undo.
+  if (award.healed) p.hp = Math.max(1, p.hp - award.healed);
+  // Undoing the day's only action makes the day inactive again.
+  if (award.day && state.history[award.day]) {
+    state.history[award.day] -= 1;
+    if (!state.history[award.day]) {
+      delete state.history[award.day];
+      if (award.prev && p.lastActiveDay === award.day) {
+        const { fullWeekend, ...was } = award.prev;
+        Object.assign(p, was);
+        bump(state, 'activeDays', -1);
+        if (fullWeekend) bump(state, 'fullWeekends', -1);
+      }
+    }
   }
 }
 

@@ -4,11 +4,13 @@
 # Phase 2 change from Phase 1: home-control-plane no longer mounts the
 # Docker socket itself. Instead, docker-socket-proxy holds the real socket
 # and exposes only the specific calls the dashboard needs (list/inspect
-# containers, start, stop) over plain TCP on the internal network — nothing
-# else, and nothing published to the host. If the dashboard ever has a bug
-# or gets exposed, the blast radius is "start/stop this one container," not
-# "full Docker API access." See https://github.com/Tecnativa/docker-socket-proxy
-# for the full list of toggles if you want to expose anything more later.
+# containers, start, stop) over plain TCP — nothing else, and nothing
+# published to the host. The proxy lives on its own private network that only
+# home-control-plane joins: "inspect" returns every container's environment
+# (all the stacks' passwords) and start/stop works on any container, so it must
+# not be reachable from proxy-network, where the internet-facing Minecraft
+# servers live. See https://github.com/Tecnativa/docker-socket-proxy for the
+# full list of toggles.
 
 services:
   docker-socket-proxy:
@@ -28,8 +30,10 @@ services:
       - ALLOW_STOP=1
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-    # No ports published — reached only by home-control-plane, over the
-    # Docker network they share, at docker-socket-proxy:2375.
+    # No ports published — reached only by home-control-plane, at
+    # docker-socket-proxy:2375 on the private docker-api network.
+    networks:
+      - docker-api
 
   home-control-plane:
     build: ../..   # repo root; Portainer clones the whole repo
@@ -39,6 +43,9 @@ services:
       - docker-socket-proxy
     ports:
       - "3001:3000"   # NPM proxies dash.marshmallowmc.com -> <host-ip>:3001
+    networks:
+      - default      # proxy-network: NPM, Minecraft, Pi-hole, Jellyfin, Firefly
+      - docker-api   # the only way to the Docker proxy
     volumes:
       - quests_data:/app/data   # the quest board (one JSON file); back this up
     environment:
@@ -84,3 +91,5 @@ networks:
   default:
     name: proxy-network
     external: true
+  docker-api:
+    internal: true   # no route out; just the dashboard and the Docker proxy

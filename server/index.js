@@ -12,9 +12,10 @@ const jellyfinRoutes = require('./routes/jellyfin');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// No login logic here on purpose: auth is handled one layer up, by Nginx
-// Proxy Manager's basic auth in front of this container. This app only
-// ever expects to be reached through NPM, over Tailscale.
+// No login: anything on the LAN or Tailscale can use this dashboard (NPM's
+// basic auth was removed so the phone app works). Other websites still can't
+// make changes through your browser; see same-site.js.
+app.use(require('./same-site'));
 
 app.use('/api/system', systemRoutes);
 app.use('/api/services', serviceRoutes);
