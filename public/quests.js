@@ -257,8 +257,10 @@ function openWorkout(id) {
   const logged = S.workouts.find((w) => w.dailyId === id && w.day === S.today);
   const f = $('qb-edit-form');
   f.innerHTML = `
-    <h2>${esc(d.title)}</h2>
-    <p class="qb-rest" id="qb-rest" aria-live="polite">Rest ${d.routine.rest} s between sets. The timer starts when you enter a set.</p>
+    <div class="qb-workout-head">
+      <h2>${esc(d.title)}</h2>
+      <p class="qb-rest" id="qb-rest" aria-live="polite">Rest ${d.routine.rest} s between sets. The timer starts when you enter a set.</p>
+    </div>
     ${d.routine.exercises.map((e) => {
       const past = pastSets(id, e.id).filter((x) => x.day !== S.today);
       const now = logged?.exercises.find((x) => x.exId === e.id);
@@ -271,8 +273,13 @@ function openWorkout(id) {
         <legend>${esc(e.name)} <span class="qb-ex-target">${target(e)}</span></legend>
         ${e.steps.length > 1 ? `<select name="step" aria-label="Progression step for ${esc(e.name)}">${e.steps.map((t, i) =>
           `<option value="${i}" ${i === pick ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>` : ''}
-        <div class="qb-sets">${Array.from({ length: e.sets }, (_, i) => `<input type="number" inputmode="numeric" min="0" max="9999"
-          aria-label="${esc(e.name)} set ${i + 1}" placeholder="${beat?.sets[i] ?? ''}" value="${now?.sets[i] ?? ''}">`).join('')}</div>
+        <div class="qb-sets" data-inc="${e.unit === 'secs' ? 5 : 1}" data-min="${e.min}">${Array.from({ length: e.sets }, (_, i) => `
+          <div class="qb-set"><span class="qb-set-label">Set ${i + 1}</span><div class="qb-stepper">
+            <button type="button" data-inc-dir="-1" aria-label="${esc(e.name)} set ${i + 1}: less" tabindex="-1">&minus;</button>
+            <input type="number" inputmode="numeric" min="0" max="9999" aria-label="${esc(e.name)} set ${i + 1}"
+              placeholder="${beat?.sets[i] ?? ''}" value="${now?.sets[i] ?? ''}">
+            <button type="button" data-inc-dir="1" aria-label="${esc(e.name)} set ${i + 1}: more" tabindex="-1">+</button>
+          </div></div>`).join('')}</div>
         ${advice ? `<p class="qb-advice qb-advice-${advice.type}">${esc(advice.text)}</p>` : ''}
         <p class="qb-notes">${past[0] ? `Last time (${shortDay(past[0].day)}): ${esc(fmtSets(past[0]))}` : 'First time logging this one.'}</p>
         ${past.length ? `<details class="qb-done-list"><summary>History (${past.length})</summary><ul class="qb-history">${past.slice(0, 20).map((x) =>
@@ -285,7 +292,18 @@ function openWorkout(id) {
       <button value="save" class="qb-primary">${logged ? 'Update workout' : 'Finish workout'}</button>
     </div>`;
 
-  f.onclick = (ev) => { if (ev.target.closest('[data-rest-skip]')) stopRest('Rest skipped.'); };
+  f.onclick = (ev) => {
+    if (ev.target.closest('[data-rest-skip]')) stopRest('Rest skipped.');
+    const btn = ev.target.closest('[data-inc-dir]');
+    if (!btn) return;
+    const sets = btn.closest('.qb-sets');
+    const input = btn.parentElement.querySelector('input');
+    // An empty box starts from the number to beat (or the range minimum), then steps by 1 rep or 5 s.
+    input.value = input.value === ''
+      ? Number(input.placeholder || sets.dataset.min)
+      : Math.min(9999, Math.max(0, Number(input.value) + Number(btn.dataset.incDir) * Number(sets.dataset.inc)));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  };
   f.onchange = (ev) => { if (ev.target.closest('.qb-sets') && ev.target.value !== '') startRest(d.routine.rest); };
   f.onsubmit = async (ev) => {
     if (ev.submitter?.value !== 'save') return;
@@ -297,6 +315,7 @@ function openWorkout(id) {
     }));
     if (await api('POST', `/dailies/${id}/workout`, { exercises })) $('qb-dialog').close();
   };
+  $('qb-dialog').classList.add('qb-wide');
   $('qb-dialog').showModal();
 }
 
@@ -367,6 +386,7 @@ function openEditor(kind, id) {
     </div>`;
 
   f.onchange = null;
+  $('qb-dialog').classList.remove('qb-wide');
   f.onclick = (ev) => {
     if (ev.target.closest('#qb-ex-add')) $('qb-ex-list').insertAdjacentHTML('beforeend', exRow());
     if (ev.target.closest('[data-ex-remove]')) ev.target.closest('.qb-ex-edit').remove();
