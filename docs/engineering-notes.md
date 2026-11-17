@@ -426,6 +426,14 @@ ls -d world_nether world_the_end world/dimensions/minecraft/*
 - **To keep the replacements**: move `world_nether` and `world_the_end` out
   of `~/FamilyServer` instead, so Paper has nothing to import.
 
+If the boot already failed, Paper moved some originals into the
+replacement folders before it stopped. Moving those folders aside then takes
+the moved originals with them. First move every file older than the switch
+to vanilla (Oct 30, 2026) back into `world_nether/DIM-1` (or
+`world_the_end/DIM1`):
+`find world/dimensions/minecraft -name '*.mca' ! -newermt 2026-10-30` lists
+them.
+
 The log shows `LegacyCraftBukkitWorldMigration` lines during the import.
 Afterwards only `world` remains, so DriveBackupV2's world list needs only
 `world`.
