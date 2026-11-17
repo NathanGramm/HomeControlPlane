@@ -158,7 +158,33 @@ services:
       - TZ=America/New_York
     volumes:
       - /home/ncgramm/FamilyServer:/data:ro
-      - /home/ncgramm/backups/family-minecraft:/backups
+      # The 4 TB disk, not ~/backups: the root disk is nearly full, and a copy
+      # on the same disk as the world dies with it.
+      - /mnt/storage4t/backups/family-minecraft:/backups
+
+  # Same as family-minecraft-backup, for GTNH. The mod's own backups (in
+  # ~/GTNHServer/backups, on the root disk) are excluded from the copy.
+  gtnh-minecraft-backup:
+    image: itzg/mc-backup:latest
+    container_name: gtnh-minecraft-backup
+    restart: unless-stopped
+    environment:
+      - RCON_HOST=gtnh-minecraft
+      - RCON_PORT=25575
+      - RCON_PASSWORD=${RCON_PASSWORD:?set in .env}
+      - RCON_RETRIES=-1
+      - RCON_RETRY_INTERVAL=30s
+      - INITIAL_DELAY=2m
+      - BACKUP_INTERVAL=6h
+      - BACKUP_METHOD=tar
+      - EXCLUDES=*.jar,cache,logs,*.tmp,backups
+      - PRUNE_BACKUPS_COUNT=20
+      - PRUNE_BACKUPS_DAYS=90
+      - PAUSE_IF_NO_PLAYERS=false
+      - TZ=America/New_York
+    volumes:
+      - /home/ncgramm/GTNHServer:/data:ro
+      - /mnt/storage4t/backups/gtnh-minecraft:/backups
 
   # FileBrowser Quantum, the maintained fork: upstream filebrowser/filebrowser
   # was archived in 2026 and gets no more security fixes. Can write to both

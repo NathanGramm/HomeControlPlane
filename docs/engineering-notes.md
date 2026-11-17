@@ -512,9 +512,11 @@ without a player count.
 Two layers, because the old setup failed with nobody noticing:
 
 - **Local, every 6 hours while the server runs:** `family-minecraft-backup`
-  ([itzg/mc-backup](https://github.com/itzg/docker-mc-backup)) writes tar
-  files to `~/backups/family-minecraft`, keeping the newest 20 (and nothing
-  older than 90 days). It pauses saving over RCON during each backup, and it
+  and `gtnh-minecraft-backup`
+  ([itzg/mc-backup](https://github.com/itzg/docker-mc-backup)) write tar
+  files to `/mnt/storage4t/backups/<server>`, keeping the newest 20 (and
+  nothing older than 90 days). That's a separate disk from the worlds, and
+  the root disk is too full to hold them anyway. It pauses saving over RCON during each backup, and it
   doesn't depend on any plugin or server type. It keeps running while the
   server is stopped and waits for RCON. It takes its first backup once the
   server is up, then one every 6 hours.
@@ -526,7 +528,7 @@ Check the local layer after any change:
 
 ```bash
 docker logs family-minecraft-backup --tail 20
-ls -lh ~/backups/family-minecraft
+ls -lh /mnt/storage4t/backups/family-minecraft
 docker exec family-minecraft-backup backup now   # one-off backup
 ```
 
