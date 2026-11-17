@@ -47,7 +47,9 @@ async function lookupContainer(server) {
   if (!docker) return null;
   const list = await docker.listContainers({
     all: true,
-    filters: JSON.stringify({ name: [server.containerName] }),
+    // Docker's name filter is an unanchored regex on "/<name>", so without
+    // the anchors family-minecraft also matches family-minecraft-backup.
+    filters: JSON.stringify({ name: [`^/${server.containerName}$`] }),
   });
   return list[0] || null;
 }

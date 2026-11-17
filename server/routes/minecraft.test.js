@@ -12,8 +12,10 @@ let lookupsFail;
 const fakeDocker = {
   listContainers: async ({ filters }) => {
     if (lookupsFail) throw new Error('proxy down');
-    const name = JSON.parse(filters).name[0];
-    return name in states ? [{ Id: name, State: states[name], Status: statuses[name] }] : [];
+    // Like Docker: the filter is an unanchored regex matched against "/<name>".
+    const pattern = new RegExp(JSON.parse(filters).name[0]);
+    return Object.keys(states).filter((name) => pattern.test(`/${name}`))
+      .map((name) => ({ Id: name, State: states[name], Status: statuses[name] }));
   },
   getContainer: (id) => ({
     start: async () => {
@@ -110,4 +112,12 @@ test('an unhealthy or still-starting container is not online', async () => {
     const body = await (await fetch(`${base}/family/status`)).json();
     assert.strictEqual(body.server.online, false, status);
   }
+});
+
+test('a container whose name only starts with the server name is ignored', async () => {
+  states = { 'family-minecraft-backup': 'running', 'family-minecraft': 'exited', 'gtnh-minecraft': 'exited' };
+  const body = await (await fetch(`${base}/family/status`)).json();
+  assert.strictEqual(body.container.state, 'exited');
+  assert.strictEqual((await start('family')).status, 200);
+  assert.deepStrictEqual(started, ['family-minecraft']);
 });
