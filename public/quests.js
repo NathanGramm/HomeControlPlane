@@ -66,7 +66,7 @@ function showEvent(e) {
 
 const bar = (pct, cls) => `<div class="qb-bar"><div class="qb-bar-fill ${cls}" style="width:${Math.max(0, Math.min(100, pct))}%"></div></div>`;
 const diffTag = (d) => `<span class="qb-tag qb-diff-${d}">${d}</span>`;
-const editBtn = (kind, id) => `<button class="qb-icon-btn" data-act="edit" data-kind="${kind}" data-id="${esc(id)}" aria-label="Edit">✎</button>`;
+const editBtn = (kind, id) => `<button class="qb-icon-btn" data-act="edit" data-kind="${kind}" data-id="${esc(id)}" aria-label="Edit">${icon('pencil')}</button>`;
 const checklist = (kind, item) => (item.checklist.length ? `<ul class="qb-checklist">${item.checklist.map((c, i) => `
   <li><button class="qb-check qb-check-sm ${c.done ? 'on' : ''}" data-act="step" data-kind="${kind}" data-id="${esc(item.id)}" data-i="${i}" aria-pressed="${c.done}" aria-label="Step done"></button>
   <span class="${c.done ? 'qb-done-text' : ''}">${esc(c.text)}</span></li>`).join('')}</ul>` : '');
