@@ -1,8 +1,13 @@
 const assert = require('node:assert');
 const { test, before, after, beforeEach } = require('node:test');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const express = require('express');
 
 process.env.MINECRAFT_CONTAINER_NAME = 'gtnh-minecraft';
+const backupsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mc-backups-'));
+process.env.MINECRAFT_BACKUPS_DIR = backupsDir;
 
 let states;
 let statuses;
@@ -120,4 +125,19 @@ test('a container whose name only starts with the server name is ignored', async
   assert.strictEqual(body.container.state, 'exited');
   assert.strictEqual((await start('family')).status, 200);
   assert.deepStrictEqual(started, ['family-minecraft']);
+});
+
+test('status reports the newest backup, or null when there is none', async () => {
+  const dir = path.join(backupsDir, 'family-minecraft');
+  fs.mkdirSync(dir, { recursive: true });
+  const older = new Date('2026-11-01T00:00:00Z');
+  const newer = new Date('2026-11-17T12:00:00Z');
+  fs.writeFileSync(path.join(dir, 'a.tgz'), '');
+  fs.writeFileSync(path.join(dir, 'b.tgz'), '');
+  fs.utimesSync(path.join(dir, 'a.tgz'), newer, newer);
+  fs.utimesSync(path.join(dir, 'b.tgz'), older, older);
+  const family = await (await fetch(`${base}/family/status`)).json();
+  assert.strictEqual(family.lastBackupAt, newer.toISOString());
+  const gtnh = await (await fetch(`${base}/gtnh/status`)).json();
+  assert.strictEqual(gtnh.lastBackupAt, null);
 });

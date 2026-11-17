@@ -48,6 +48,7 @@ services:
       - docker-api   # the only way to the Docker proxy
     volumes:
       - quests_data:/app/data   # the quest board (one JSON file); back this up
+      - /mnt/storage4t/backups:/backups:ro   # Minecraft backups, for the "Last backup" time
     environment:
       - PORT=3000
       - TZ=America/New_York   # the quest board's day rolls over at local midnight

@@ -164,7 +164,12 @@ const MC_SERVERS = ['gtnh', 'family'];
 const mcBusy = {};
 
 function renderMinecraft(id, data) {
-  const { container, server, blockedBy } = data;
+  const { container, server, blockedBy, lastBackupAt } = data;
+  // Backups run every 6 h while the server is up, so a running server with
+  // nothing newer than 7 h means they've stopped. Also true for the first
+  // couple of minutes after starting a server that was off for a while.
+  const backupLate = container.state === 'running'
+    && !(Date.now() - new Date(lastBackupAt).getTime() < 7 * 3600e3);
   for (const v of all(`[data-mc="${id}"]`)) {
     const pill = v.querySelector('.mc-pill');
     const detail = v.querySelector('.mc-detail');
@@ -187,6 +192,7 @@ function renderMinecraft(id, data) {
         <dt>Version</dt><dd>${escapeHtml(server.version)}</dd>
         <dt>MOTD</dt><dd>${escapeHtml(server.motd)}</dd>
         <dt>Players</dt><dd>${server.playerNames?.length ? server.playerNames.map(escapeHtml).join(', ') : 'Nobody on right now'}</dd>` : '';
+      info.innerHTML += `<dt>Last backup</dt><dd${backupLate ? ' class="backup-late"' : ''}>${timeAgo(lastBackupAt)}</dd>`;
     }
     btn.disabled = !container.found;
     delete btn.dataset.action;

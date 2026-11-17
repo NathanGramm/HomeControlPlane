@@ -1,3 +1,5 @@
+const fs = require('node:fs/promises');
+const path = require('node:path');
 const express = require('express');
 const docker = require('../docker');
 
@@ -30,6 +32,22 @@ const SERVERS = {
 };
 
 const STOPPED_STATES = ['created', 'exited', 'dead'];
+
+// The mc-backup containers write to <dir>/<container name>; the dashboard
+// mounts that folder read-only.
+const BACKUPS_DIR = process.env.MINECRAFT_BACKUPS_DIR || '/backups';
+
+// Newest file's time as ISO, or null when there's no folder or no backup yet.
+async function lastBackup(server) {
+  try {
+    const dir = path.join(BACKUPS_DIR, server.containerName);
+    const names = await fs.readdir(dir);
+    const times = await Promise.all(names.map(async (n) => (await fs.stat(path.join(dir, n))).mtimeMs));
+    return times.length ? new Date(Math.max(...times)).toISOString() : null;
+  } catch {
+    return null;
+  }
+}
 
 // Only one start can be between its check and its docker start at a time, so
 // two clicks can't both pass the "is the other server up?" check below.
@@ -114,9 +132,10 @@ function isHealthy(containerInfo) {
 // when it's the reason this one can't start.
 router.get('/:server/status', async (req, res) => {
   try {
-    const [containerInfo, blocker] = await Promise.all([
+    const [containerInfo, blocker, lastBackupAt] = await Promise.all([
       findContainer(req.mcServer),
       findRunningOtherServer(req.mcServer).catch(() => null),
+      lastBackup(req.mcServer),
     ]);
     // A stopped container's name doesn't resolve inside Docker, so pinging it
     // only sends a doomed lookup to Pi-hole every poll. Skip it.
@@ -131,6 +150,7 @@ router.get('/:server/status', async (req, res) => {
       container: { found: !!containerInfo, state },
       server,
       blockedBy: blocker ? blocker.label : null,
+      lastBackupAt,
       updatedAt: new Date().toISOString(),
     });
   } catch (err) {

@@ -223,6 +223,7 @@ code{ font-family:'JetBrains Mono',monospace; font-size:.9em; background:var(--b
 }
 .status-pill.status-good{ color:var(--good); background:var(--good-bg); }
 .status-pill.status-warn{ color:var(--warn); background:var(--warn-bg); }
+.backup-late{ color:var(--warn); font-weight:600; }
 .status-pill.status-bad{ color:var(--bad); background:var(--bad-bg); }
 .status-pill.status-muted{ color:var(--ink-muted); background:var(--border); }
 
