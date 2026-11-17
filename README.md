@@ -17,7 +17,7 @@ reverse proxy with authentication.
 | **System vitals** | Live CPU load (click for a per-core breakdown) and RAM usage (click for memory per Docker container, largest first). Refreshes every 5 seconds. |
 | **Minecraft control** | One-button start/stop for a modded (GT: New Horizons) Minecraft server running in Docker. The status pill tells apart *stopped*, *starting* (container up, world still loading) and *online*, with player count, version and MOTD. Shutdown goes through RCON, so the world saves cleanly. |
 | **Finances** | Net worth and the five most recent transactions from Firefly III, read through its API. Hidden until an API token is configured. Statements are imported manually through Firefly's Data Importer, so no bank credentials ever reach a third-party aggregator. |
-| **Service tiles** | Links to the rest of the homelab (Portainer, Nginx Proxy Manager, Pi-hole, Jellyfin, Tandoor), driven by a JSON file, so adding a tile needs no code change. |
+| **Service tiles** | Links to every other service in the homelab, driven by a JSON file, so adding a tile needs no code change. Each tile also has a direct `IP:port` link for when the reverse proxy or Pi-hole is down. |
 
 ## Architecture
 

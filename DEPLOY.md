@@ -13,7 +13,6 @@ Each stack is one folder in `stacks/`:
 | [tandoor](stacks/tandoor/compose.yml) | tandoor_db, tandoor_web |
 | [media](stacks/media/compose.yml) | jellyfin |
 | [rippers](stacks/rippers/compose.yml) | makemkv, handbrake |
-| [homepage](stacks/homepage/compose.yml) | homepage |
 
 Portainer itself runs outside any stack.
 
@@ -39,11 +38,19 @@ deploy doesn't create or start them. See the
 [engineering notes](docs/engineering-notes.md#family-server) for how to
 apply compose changes to them.
 
+## When the reverse proxy is down
+
+Every subdomain goes through NPM and Pi-hole. If either is down, open the
+dashboard at `http://192.168.4.20:3001` instead. Each tile shows a direct
+`IP:port` link under its name that bypasses both.
+
 ## Exposing a service
 
 - Nginx Proxy Manager: new proxy host, `<name>.marshmallowmc.com` →
   `<host-ip>:<published-port>`, with the basic-auth access list attached.
 - Pi-hole: local DNS record `<name>.marshmallowmc.com` → server LAN IP.
+- Dashboard tile: add it to `server/config/services.json` with `url` (the
+  subdomain) and `directUrl` (`http://192.168.4.20:<port>`).
 - Never port-forward anything except Minecraft.
 
 ## Migrating the existing stacks to git
@@ -77,8 +84,8 @@ stack's current secret values ready (Portainer → stack → Editor shows them).
 
 ### 2. The other stacks, one at a time
 
-For each of homepage, rippers, media, tandoor, nginx-proxy-manager, then
-pihole: delete the stack, re-add it from the repo with its secrets, and check
+For each of rippers, media, tandoor, nginx-proxy-manager, then pihole:
+delete the stack, re-add it from the repo with its secrets, and check
 the service works before moving on.
 
 - **tandoor:** `TANDOOR_DB_PASSWORD` must be the old password exactly.
@@ -87,5 +94,8 @@ the service works before moving on.
 - **pihole last:** while it's down, nothing on the LAN resolves names, which
   can include the server's own clone from GitHub. If the re-add fails to
   clone, set the host's DNS fallback to `9.9.9.9` and retry.
+- **homepage:** isn't re-added; the dashboard replaces it. Once the
+  dashboard's tiles work, delete the stack, then remove its config folder
+  (`~/docker/homepage`).
 - **rippers:** don't run it mid-rip. HandBrake deletes sources after
   encoding.

@@ -259,11 +259,14 @@ async function loadServices() {
     tileGrid.innerHTML = services
       .map(
         (s) => `
-      <a class="tile" href="${escapeHtml(s.url)}" target="_blank" rel="noopener">
-        <span class="tile-category">${escapeHtml(s.category || '')}</span>
-        <span class="tile-name">${escapeHtml(s.name)}</span>
-        ${s.note ? `<span class="tile-note">${escapeHtml(s.note)}</span>` : ''}
-      </a>`
+      <div class="tile">
+        <a class="tile-link" href="${escapeHtml(s.url)}" target="_blank" rel="noopener">
+          <span class="tile-category">${escapeHtml(s.category || '')}</span>
+          <span class="tile-name">${escapeHtml(s.name)}</span>
+          ${s.note ? `<span class="tile-note">${escapeHtml(s.note)}</span>` : ''}
+        </a>
+        ${s.directUrl ? `<a class="tile-direct" href="${escapeHtml(s.directUrl)}" target="_blank" rel="noopener" title="Direct link, bypassing the reverse proxy">${escapeHtml(s.directUrl.replace(/^https?:\/\//, ''))}</a>` : ''}
+      </div>`
       )
       .join('');
   } catch (err) {
