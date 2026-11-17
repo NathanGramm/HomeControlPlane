@@ -172,7 +172,9 @@ function renderMinecraft(id, data) {
     const info = v.querySelector('.mc-info');
     if (server?.online) {
       setPill(pill, 'online', 'good');
-      detail.textContent = `${server.players}/${server.maxPlayers} players online`;
+      detail.textContent = server.players == null
+        ? 'Joinable. Player count is hidden.'
+        : `${server.players}/${server.maxPlayers} players online`;
     } else if (container.state === 'running') {
       setPill(pill, 'starting…', 'warn');
       detail.textContent = 'Container is up; the world is still loading.';
@@ -181,7 +183,7 @@ function renderMinecraft(id, data) {
       detail.textContent = 'Stopped.';
     }
     if (info) {
-      info.innerHTML = server?.online ? `
+      info.innerHTML = server?.online && server.players != null ? `
         <dt>Version</dt><dd>${escapeHtml(server.version)}</dd>
         <dt>MOTD</dt><dd>${escapeHtml(server.motd)}</dd>
         <dt>Players</dt><dd>${server.playerNames?.length ? server.playerNames.map(escapeHtml).join(', ') : 'Nobody on right now'}</dd>` : '';

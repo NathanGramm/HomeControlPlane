@@ -54,9 +54,13 @@ Manager terminates TLS for each subdomain.
   `proxy-network`.
 - **No login, but no cross-site writes.** The dashboard has no login (NPM's
   basic auth was removed so the phone app works), so anyone on the LAN or
-  Tailscale can use it, and nothing is port-forwarded to the internet. Writes
+  Tailscale can use it, and it's never port-forwarded to the internet. Writes
   that another website tries to make through your browser are refused
   (`server/same-site.js`).
+- **Minecraft is the one exception.** The family server is port-forwarded so
+  family can join from home. Only whitelisted, signed-in accounts get in,
+  and pings from IPs that no whitelisted player has joined from get no
+  server info. See [Family server](docs/engineering-notes.md#who-can-get-in).
 - **Secrets stay out of git.** Every password and token comes from a
   stack's Portainer environment variables (templates: `stacks/*/.env.example`).
   Compose refuses to start if a required value is missing.
@@ -149,7 +153,8 @@ server, and is closed out before the next one starts.
 
 **Operational follow-ups**
 
-- [ ] Find out why the Minecraft world's automated backups stopped, and add a backup job outside the mod that's monitored.
+- [ ] Find out why the GTNH world's automated backups stopped, and add a backup job outside the mod that's monitored.
+- [x] Family server backups: they stopped because the server ran as vanilla, so DriveBackupV2 never loaded. It runs on Paper now, with an [mc-backup](https://github.com/itzg/docker-mc-backup) sidecar as a plugin-independent local copy.
 - [ ] Upgrade the Minecraft server to GTNH 2.9.0 (compose changes are prepped).
 - [ ] Add RAM to the host. The 6 GB Minecraft JVM leaves little headroom on 11 GB.
 - [ ] After the RAM upgrade, remove the check that stops `gtnh-minecraft` and `family-minecraft` running together (see the [engineering notes](docs/engineering-notes.md#family-server)).
