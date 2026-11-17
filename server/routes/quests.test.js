@@ -102,3 +102,29 @@ test('routines are validated, and a workout logs through the API', async () => {
   assert.deepStrictEqual(r.body.state.workouts.at(-1).exercises[0].sets, [4]);
   assert.strictEqual(r.body.state.workouts.at(-1).exercises[0].step, 'Full');
 });
+
+test('editing a routine keeps exercise ids, so history stays attached', async () => {
+  const exercises = [
+    { name: 'Dips', sets: 3, unit: 'reps', min: 5, max: 8, steps: ['Bench', 'Bar'], step: 1 },
+    { name: 'L-sit', sets: 2, unit: 'secs', min: 10, max: 20, steps: [] },
+  ];
+  let r = await call('POST', '/dailies', { title: 'Push day', routine: { exercises } });
+  const d = r.body.state.dailies.find((x) => x.title === 'Push day');
+  const ids = d.routine.exercises.map((e) => e.id);
+  await call('POST', `/dailies/${d.id}/workout`, { exercises: [{ exId: ids[0], step: 1, sets: [6, 6, 5] }] });
+
+  // Rename, reorder and add a step, the way the editor sends it back.
+  const edited = [
+    { ...d.routine.exercises[1], name: 'L-sit hold' },
+    { ...d.routine.exercises[0], steps: ['Wall', 'Bench', 'Bar'], step: 2 },
+    { name: 'Push-ups', sets: 3, unit: 'reps', min: 8, max: 12, steps: [] },
+  ];
+  r = await call('PUT', `/dailies/${d.id}`, { title: 'Push day', routine: { exercises: edited } });
+  assert.strictEqual(r.status, 200);
+  const after = r.body.state.dailies.find((x) => x.id === d.id).routine.exercises;
+  assert.deepStrictEqual(after.slice(0, 2).map((e) => e.id), [ids[1], ids[0]]);
+  assert.ok(after[2].id && !ids.includes(after[2].id));
+  assert.strictEqual(after[1].steps[after[1].step], 'Bar');
+  const logged = r.body.state.workouts.filter((w) => w.dailyId === d.id).flatMap((w) => w.exercises);
+  assert.ok(logged.every((x) => after.some((e) => e.id === x.exId)));
+});

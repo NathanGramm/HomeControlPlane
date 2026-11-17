@@ -251,10 +251,28 @@ function startRest(secs) {
   restTimer = setInterval(tick, 250);
 }
 
+// The phone stays awake during a workout, so the rest timer can buzz.
+// Browsers drop the lock when the tab is hidden; visibilitychange asks again.
+let wakeLock = null;
+const keepAwake = () => navigator.wakeLock?.request('screen').then((l) => { wakeLock = l; }).catch(() => {});
+
+// 2. Sets typed so far live in localStorage until Finish, so a back swipe,
+// Escape or a page reload doesn't lose them. One draft per daily, today only.
+const draftKey = (id) => `qb-workout-draft:${id}`;
+function readDraft(id) {
+  try {
+    const d = JSON.parse(localStorage.getItem(draftKey(id)));
+    return d && d.day === S.today ? d.exercises : null;
+  } catch {
+    return null;
+  }
+}
+
 function openWorkout(id) {
   const d = S.dailies.find((x) => x.id === id);
   if (!d?.routine) return;
   const logged = S.workouts.find((w) => w.dailyId === id && w.day === S.today);
+  const draft = readDraft(id);
   const f = $('qb-edit-form');
   f.innerHTML = `
     <div class="qb-workout-head">
@@ -264,9 +282,10 @@ function openWorkout(id) {
     ${d.routine.exercises.map((e) => {
       const past = pastSets(id, e.id).filter((x) => x.day !== S.today);
       const now = logged?.exercises.find((x) => x.exId === e.id);
+      const kept = draft?.find((x) => x.exId === e.id);
       const advice = d.advice?.[e.id];
-      // A new session starts on the suggested step; editing today's keeps what you logged.
-      const pick = logged ? e.step : (advice?.step ?? e.step);
+      // A draft wins; editing today's keeps what you logged; a new session starts on the suggested step.
+      const pick = kept?.step ?? (logged ? e.step : (advice?.step ?? e.step));
       // Numbers to beat come only from the step you're about to do.
       const beat = past.find((x) => x.step === (e.steps[pick] || ''));
       return `<fieldset class="qb-ex" data-ex="${esc(e.id)}">
@@ -277,7 +296,7 @@ function openWorkout(id) {
           <div class="qb-set"><span class="qb-set-label">Set ${i + 1}</span><div class="qb-stepper">
             <button type="button" data-inc-dir="-1" aria-label="${esc(e.name)} set ${i + 1}: less" tabindex="-1">&minus;</button>
             <input type="number" inputmode="numeric" min="0" max="9999" aria-label="${esc(e.name)} set ${i + 1}"
-              placeholder="${beat?.sets[i] ?? ''}" value="${now?.sets[i] ?? ''}">
+              placeholder="${beat?.sets[i] ?? ''}" value="${(kept ? kept.sets[i] : now?.sets[i]) ?? ''}">
             <button type="button" data-inc-dir="1" aria-label="${esc(e.name)} set ${i + 1}: more" tabindex="-1">+</button>
           </div></div>`).join('')}</div>
         ${advice ? `<p class="qb-advice qb-advice-${advice.type}">${esc(advice.text)}</p>` : ''}
@@ -288,9 +307,19 @@ function openWorkout(id) {
     }).join('')}
     <div class="qb-row qb-dialog-actions">
       <span class="qb-spacer"></span>
-      <button value="cancel" formnovalidate>Cancel</button>
+      <button type="button" data-act="close">Cancel</button>
       <button value="save" class="qb-primary">${logged ? 'Update workout' : 'Finish workout'}</button>
     </div>`;
+
+  const inputs = [...f.querySelectorAll('.qb-sets input')];
+  // Boxes that already hold a number don't start the rest timer when corrected.
+  for (const i of inputs) i.dataset.filled = i.value === '' ? '' : '1';
+  const collect = () => [...f.querySelectorAll('.qb-ex')].map((fs) => ({
+    exId: fs.dataset.ex,
+    step: fs.querySelector('[name=step]') ? Number(fs.querySelector('[name=step]').value) : undefined,
+    sets: [...fs.querySelectorAll('.qb-sets input')].map((i) => (i.value === '' ? null : Number(i.value))),
+  }));
+  const saveDraft = () => localStorage.setItem(draftKey(id), JSON.stringify({ day: S.today, exercises: collect() }));
 
   f.onclick = (ev) => {
     if (ev.target.closest('[data-rest-skip]')) stopRest('Rest skipped.');
@@ -298,29 +327,47 @@ function openWorkout(id) {
     if (!btn) return;
     const sets = btn.closest('.qb-sets');
     const input = btn.parentElement.querySelector('input');
-    // An empty box starts from the number to beat (or the range minimum), then steps by 1 rep or 5 s.
+    const dir = Number(btn.dataset.incDir);
+    // + on an empty box fills in the number to beat (or the range minimum); - waits for a number.
+    if (input.value === '' && dir < 0) return;
     input.value = input.value === ''
       ? Number(input.placeholder || sets.dataset.min)
-      : Math.min(9999, Math.max(0, Number(input.value) + Number(btn.dataset.incDir) * Number(sets.dataset.inc)));
+      : Math.min(9999, Math.max(0, Number(input.value) + dir * Number(sets.dataset.inc)));
     input.dispatchEvent(new Event('change', { bubbles: true }));
   };
-  f.onchange = (ev) => { if (ev.target.closest('.qb-sets') && ev.target.value !== '') startRest(d.routine.rest); };
+  f.oninput = saveDraft;
+  f.onchange = (ev) => {
+    saveDraft();
+    const box = ev.target;
+    if (!box.closest('.qb-sets')) return;
+    // The rest timer starts when a set is first filled in, not on corrections.
+    if (box.value !== '' && !box.dataset.filled) startRest(d.routine.rest);
+    box.dataset.filled = box.value === '' ? '' : '1';
+  };
+  // Enter moves to the next set box instead of submitting the form.
+  f.onkeydown = (ev) => {
+    if (ev.key !== 'Enter' || !ev.target.closest('.qb-sets')) return;
+    ev.preventDefault();
+    ev.target.dispatchEvent(new Event('change', { bubbles: true }));
+    const next = inputs[inputs.indexOf(ev.target) + 1];
+    if (next) next.focus();
+    else ev.target.blur();
+  };
   f.onsubmit = async (ev) => {
     if (ev.submitter?.value !== 'save') return;
     ev.preventDefault();
-    const exercises = [...f.querySelectorAll('.qb-ex')].map((fs) => ({
-      exId: fs.dataset.ex,
-      step: fs.querySelector('[name=step]') ? Number(fs.querySelector('[name=step]').value) : undefined,
-      sets: [...fs.querySelectorAll('.qb-sets input')].map((i) => (i.value === '' ? null : Number(i.value))),
-    }));
-    if (await api('POST', `/dailies/${id}/workout`, { exercises })) $('qb-dialog').close();
+    if (await api('POST', `/dailies/${id}/workout`, { exercises: collect() })) {
+      localStorage.removeItem(draftKey(id));
+      $('qb-dialog').close();
+    }
   };
   $('qb-dialog').classList.add('qb-wide');
   $('qb-dialog').showModal();
+  keepAwake();
 }
 
 const exRow = (e = { name: '', sets: 3, unit: 'reps', min: 8, max: 12, steps: [], step: 0 }) => `
-  <fieldset class="qb-ex-edit" data-id="${esc(e.id || '')}" data-step="${e.step || 0}">
+  <fieldset class="qb-ex-edit" data-id="${esc(e.id || '')}" data-step="${e.step || 0}" data-step-name="${esc(e.steps[e.step] || '')}">
     <div class="qb-row"><label class="qb-grow">Exercise<input name="ex-name" maxlength="100" required value="${esc(e.name)}"></label>
       <button type="button" class="qb-icon-btn" data-ex-remove aria-label="Remove ${esc(e.name || 'exercise')}">&times;</button></div>
     <div class="qb-row qb-ex-nums">
@@ -350,7 +397,9 @@ function readRoutine(f) {
       return {
         id: row.dataset.id || undefined, name: v('ex-name'), unit: v('ex-unit'),
         sets: Number(v('ex-sets')), min: Number(v('ex-min')), max: Number(v('ex-max')),
-        steps, step: Math.min(Number(row.dataset.step), Math.max(steps.length - 1, 0)),
+        steps, step: steps.includes(row.dataset.stepName)
+          ? steps.indexOf(row.dataset.stepName)
+          : Math.min(Number(row.dataset.step), Math.max(steps.length - 1, 0)),
       };
     }),
   };
@@ -381,11 +430,13 @@ function openEditor(kind, id) {
     <div class="qb-row qb-dialog-actions">
       <button type="button" class="qb-danger" id="qb-delete">Delete</button>
       <span class="qb-spacer"></span>
-      <button value="cancel" formnovalidate>Cancel</button>
+      <button type="button" data-act="close">Cancel</button>
       <button value="save" class="qb-primary">Save</button>
     </div>`;
 
   f.onchange = null;
+  f.oninput = null;
+  f.onkeydown = null;
   $('qb-dialog').classList.remove('qb-wide');
   f.onclick = (ev) => {
     if (ev.target.closest('#qb-ex-add')) $('qb-ex-list').insertAdjacentHTML('beforeend', exRow());
@@ -430,6 +481,7 @@ document.addEventListener('click', (ev) => {
   }
   if (act === 'edit') openEditor(kind, id);
   if (act === 'workout') openWorkout(id);
+  if (act === 'close') $('qb-dialog').close();
 });
 
 document.querySelectorAll('.qb-add').forEach((form) => {
@@ -448,10 +500,15 @@ document.querySelectorAll('.qb-add').forEach((form) => {
   });
 });
 
-$('qb-dialog').addEventListener('close', () => stopRest());
+$('qb-dialog').addEventListener('close', () => {
+  stopRest();
+  wakeLock?.release().catch(() => {});
+  wakeLock = null;
+});
 
 // Pick up the day rollover if the tab is left open overnight.
 document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && $('qb-dialog').open && $('qb-dialog').classList.contains('qb-wide')) keepAwake();
   if (!document.hidden) api('GET', '/');
 });
 

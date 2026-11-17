@@ -216,6 +216,8 @@ html:has(#qb-dialog[open]){ overflow:hidden; scrollbar-gutter:stable; }
 .qb-ex-nums input{ width:100%; }
 .qb-num{ width:64px; }
 
+#qb-edit-form .qb-dialog-actions{ position:sticky; bottom:0; z-index:1; margin:0 -20px -20px; padding:12px 20px; background:var(--surface); border-top:1px solid var(--border); }
+
 #qb-edit-form .qb-danger{ border-color:var(--bad); background:var(--bad-bg); color:var(--bad); }
 
 /* 1240 = the old 1000px breakpoint plus the sidebar */
