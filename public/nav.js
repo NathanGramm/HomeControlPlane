@@ -27,4 +27,14 @@
   }
   window.addEventListener('hashchange', markActive);
   markActive();
+
+  // On phones the bar scrolls sideways; the quest board is a separate page, so
+  // carry the scroll position across page loads and keep the active tab visible.
+  nav.scrollLeft = Number(sessionStorage.getItem('navScroll')) || 0;
+  const active = nav.querySelector('.side-link.active');
+  if (active && nav.scrollWidth > nav.clientWidth) {
+    const a = active.getBoundingClientRect(), n = nav.getBoundingClientRect();
+    if (a.left < n.left || a.right > n.right) nav.scrollLeft += a.left - n.left - (n.width - a.width) / 2;
+  }
+  nav.addEventListener('scroll', () => sessionStorage.setItem('navScroll', nav.scrollLeft), { passive: true });
 })();
