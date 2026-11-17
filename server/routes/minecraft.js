@@ -83,11 +83,14 @@ async function findRunningOtherServer(server) {
 async function pingServer(server) {
   if (!mcUtil) return { online: false };
   try {
-    const result = await mcUtil.status(server.host, server.port, { timeout: 2000 });
+    // enableSRV off: host is a container name, so the SRV lookup can only miss,
+    // and each miss went out to Pi-hole (~7k queries/day per server).
+    const result = await mcUtil.status(server.host, server.port, { timeout: 2000, enableSRV: false });
     return {
       online: true,
       players: result.players.online,
       maxPlayers: result.players.max,
+      playerNames: (result.players.sample || []).map((p) => p.name),
       motd: result.motd.clean,
       version: result.version.name,
     };
@@ -107,11 +110,14 @@ async function pingServer(server) {
 // when it's the reason this one can't start.
 router.get('/:server/status', async (req, res) => {
   try {
-    const [containerInfo, server, blocker] = await Promise.all([
+    const [containerInfo, blocker] = await Promise.all([
       findContainer(req.mcServer),
-      pingServer(req.mcServer),
       findRunningOtherServer(req.mcServer).catch(() => null),
     ]);
+    // A stopped container's name doesn't resolve inside Docker, so pinging it
+    // only sends a doomed lookup to Pi-hole every poll. Skip it.
+    const stopped = containerInfo && containerInfo.State !== 'running';
+    const server = stopped ? { online: false } : await pingServer(req.mcServer);
     const state = containerInfo ? containerInfo.State : 'not_found';
 
     res.json({

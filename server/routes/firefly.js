@@ -70,7 +70,7 @@ router.get('/summary', async (req, res) => {
         console.warn('Firefly net worth fetch failed:', err.message);
         return [];
       }),
-      getRecentTransactions(5).catch((err) => {
+      getRecentTransactions(10).catch((err) => {
         console.warn('Firefly transactions fetch failed:', err.message);
         return [];
       }),

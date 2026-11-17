@@ -9,12 +9,12 @@
 <link rel="stylesheet" href="/quests.css">
 </head>
 <body>
+<div class="shell">
+  <nav class="sidebar" id="sidebar" aria-label="Sections"></nav>
+  <main class="main">
   <div class="page qb-page">
-    <header class="qb-header">
-      <div>
-        <a class="eyebrow qb-back" href="/">&larr; Home Control Plane</a>
-        <h1>Quest Board</h1>
-      </div>
+    <header class="page-head qb-header">
+      <h1>Quest Board</h1>
       <span class="qb-today" id="qb-today"></span>
     </header>
 
@@ -73,6 +73,8 @@
       <div id="qb-collection"></div>
     </section>
   </div>
+  </main>
+</div>
 
   <dialog id="qb-dialog">
     <form method="dialog" id="qb-edit-form"></form>
@@ -80,6 +82,7 @@
 
   <div class="qb-toasts" id="qb-toasts" aria-live="polite"></div>
 
+  <script src="/nav.js"></script>
   <script src="/quests.js"></script>
 </body>
 </html>

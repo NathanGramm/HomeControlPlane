@@ -7,101 +7,151 @@
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <div class="page">
-    <header>
-      <span class="eyebrow">dash.marshmallowmc.com</span>
-      <h1>Home Control Plane</h1>
-      <a class="quest-link" href="/quests.html">Quest Board &rarr;</a>
-    </header>
+<div class="shell">
+  <nav class="sidebar" id="sidebar" aria-label="Sections"></nav>
 
-    <section class="vitals">
-      <button class="vital-card" id="cpu-card" aria-expanded="false">
-        <div class="vital-head">
-          <span class="vital-label">CPU</span>
-          <span class="vital-pct" id="cpu-pct">&ndash;</span>
-        </div>
-        <div class="meter"><div class="meter-fill" id="cpu-fill"></div></div>
-        <div class="vital-hint">click for per-core</div>
-        <div class="core-grid" id="core-grid" hidden></div>
-      </button>
+  <main class="main">
 
-      <button class="vital-card" id="ram-card" aria-expanded="false">
-        <div class="vital-head">
-          <span class="vital-label">RAM</span>
-          <span class="vital-pct" id="ram-pct">&ndash;</span>
+    <!-- Overview: one screen at 1920x1080, each card links to its page -->
+    <section class="page" data-page="overview">
+      <header class="page-head"><h1>Overview</h1><span class="page-sub" id="ov-clock"></span></header>
+      <div class="ov-grid">
+        <a class="card ov-card" href="#system">
+          <div class="card-head"><span class="card-label">CPU</span><span class="big-num" data-bind="cpu-pct">&ndash;</span></div>
+          <div class="meter"><div class="meter-fill" data-bind="cpu-fill"></div></div>
+          <span class="card-hint" data-bind="cpu-hint">&nbsp;</span>
+        </a>
+        <a class="card ov-card" href="#system">
+          <div class="card-head"><span class="card-label">RAM</span><span class="big-num" data-bind="ram-pct">&ndash;</span></div>
+          <div class="meter"><div class="meter-fill" data-bind="ram-fill"></div></div>
+          <span class="card-hint" data-bind="ram-hint">&nbsp;</span>
+        </a>
+        <div class="card ov-card" data-mc="gtnh">
+          <div class="card-head"><a class="card-label" href="#minecraft">GTNH server</a><span class="status-pill status-muted mc-pill">&hellip;</span></div>
+          <p class="card-hint mc-detail">&nbsp;</p>
+          <button class="control-btn mc-btn" disabled>&hellip;</button>
         </div>
-        <div class="meter"><div class="meter-fill" id="ram-fill"></div></div>
-        <div class="vital-hint" id="ram-hint">click for breakdown</div>
-        <div class="container-list" id="container-list" hidden></div>
-      </button>
-    </section>
+        <div class="card ov-card" data-mc="family">
+          <div class="card-head"><a class="card-label" href="#minecraft">Family server</a><span class="status-pill status-muted mc-pill">&hellip;</span></div>
+          <p class="card-hint mc-detail">&nbsp;</p>
+          <button class="control-btn mc-btn" disabled>&hellip;</button>
+        </div>
 
-    <section class="controls">
-      <h2 class="section-title">Controls</h2>
-      <div class="control-card" id="minecraft-card">
-        <div class="control-head">
-          <span class="control-label">GTNH Server</span>
-          <span class="status-pill status-muted" id="mc-status-pill">checking&hellip;</span>
-        </div>
-        <p class="control-detail" id="mc-detail">&nbsp;</p>
-        <button class="control-btn" id="mc-toggle-btn" disabled>&hellip;</button>
-      </div>
-      <div class="control-card" id="family-card">
-        <div class="control-head">
-          <span class="control-label">Family Server</span>
-          <span class="status-pill status-muted" id="family-status-pill">checking&hellip;</span>
-        </div>
-        <p class="control-detail" id="family-detail">&nbsp;</p>
-        <button class="control-btn" id="family-toggle-btn" disabled>&hellip;</button>
-      </div>
-    </section>
-
-    <section class="finance" id="finance-section" hidden>
-      <h2 class="section-title">Finances</h2>
-      <div class="finance-grid">
-        <div class="finance-card">
-          <span class="finance-label">Net Worth</span>
-          <div id="finance-networth">
-            <p class="loading">Loading&hellip;</p>
+        <a class="card ov-card span-2" href="#pihole" data-show="pihole">
+          <div class="card-head"><span class="card-label">Pi-hole &middot; 24h</span><span class="status-pill status-muted" data-bind="pihole-pill">&hellip;</span></div>
+          <div class="ov-split">
+            <div class="ov-stats" data-bind="pihole-ov">&nbsp;</div>
+            <div class="ov-chart" id="ov-pihole-chart"></div>
           </div>
-        </div>
-        <div class="finance-card">
-          <span class="finance-label">Recent Transactions</span>
-          <div id="finance-transactions">
-            <p class="loading">Loading&hellip;</p>
-          </div>
+        </a>
+        <a class="card ov-card" href="#jellyfin" data-show="jellyfin">
+          <div class="card-head"><span class="card-label">Jellyfin</span><span class="status-pill status-muted" data-bind="jellyfin-pill">&hellip;</span></div>
+          <div data-bind="jellyfin-ov">&nbsp;</div>
+        </a>
+        <a class="card ov-card" href="/quests.html">
+          <div class="card-head"><span class="card-label">Quest board</span><span class="big-num" data-bind="quest-level">&ndash;</span></div>
+          <div data-bind="quest-ov">&nbsp;</div>
+        </a>
+
+        <a class="card ov-card" href="#finance" data-show="finance">
+          <div class="card-head"><span class="card-label">Net worth</span></div>
+          <div data-bind="finance-ov">&nbsp;</div>
+        </a>
+        <div class="card ov-card span-3">
+          <div class="card-head"><a class="card-label" href="#services">Services</a></div>
+          <div class="chip-grid" id="ov-services"></div>
         </div>
       </div>
     </section>
 
-    <section id="network-section" hidden>
-      <h2 class="section-title">Network &amp; Media</h2>
-      <div class="finance-grid">
-        <div class="finance-card" id="pihole-card" hidden>
-          <div class="control-head">
-            <span class="finance-label">Pi-hole &middot; 24h</span>
-            <span class="status-pill status-muted" id="pihole-pill">&hellip;</span>
-          </div>
-          <div id="pihole-body"><p class="loading">Loading&hellip;</p></div>
+    <section class="page" data-page="system" hidden>
+      <header class="page-head"><h1>System</h1></header>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-head"><span class="card-label">CPU</span><span class="big-num" data-bind="cpu-pct">&ndash;</span></div>
+          <div class="meter"><div class="meter-fill" data-bind="cpu-fill"></div></div>
+          <div class="core-grid" id="core-grid"></div>
         </div>
-        <div class="finance-card" id="jellyfin-card" hidden>
-          <div class="control-head">
-            <span class="finance-label">Jellyfin</span>
-            <span class="status-pill status-muted" id="jellyfin-pill">&hellip;</span>
-          </div>
-          <div id="jellyfin-body"><p class="loading">Loading&hellip;</p></div>
+        <div class="card">
+          <div class="card-head"><span class="card-label">RAM</span><span class="big-num" data-bind="ram-pct">&ndash;</span></div>
+          <div class="meter"><div class="meter-fill" data-bind="ram-fill"></div></div>
+          <span class="card-hint" data-bind="ram-hint">&nbsp;</span>
+          <div class="container-list" id="container-list"></div>
         </div>
       </div>
     </section>
 
-    <section>
-      <h2 class="section-title">Services</h2>
-      <div class="tile-grid" id="tile-grid">
-        <p class="loading">Loading services&hellip;</p>
+    <section class="page" data-page="minecraft" hidden>
+      <header class="page-head"><h1>Minecraft</h1>
+        <span class="page-sub">Only one server can run at a time until the RAM upgrade.</span></header>
+      <div class="grid-2">
+        <div class="card" data-mc="gtnh">
+          <div class="card-head"><span class="card-label">GTNH server</span><span class="status-pill status-muted mc-pill">&hellip;</span></div>
+          <p class="card-hint mc-detail">&nbsp;</p>
+          <dl class="kv mc-info"></dl>
+          <button class="control-btn mc-btn" disabled>&hellip;</button>
+        </div>
+        <div class="card" data-mc="family">
+          <div class="card-head"><span class="card-label">Family server</span><span class="status-pill status-muted mc-pill">&hellip;</span></div>
+          <p class="card-hint mc-detail">&nbsp;</p>
+          <dl class="kv mc-info"></dl>
+          <button class="control-btn mc-btn" disabled>&hellip;</button>
+        </div>
+      </div>
+      <p class="card-hint">Edit server files at <a href="https://files.marshmallowmc.com" target="_blank" rel="noopener">files.marshmallowmc.com</a>. Stop a server before editing its files.</p>
+    </section>
+
+    <section class="page" data-page="pihole" hidden>
+      <header class="page-head"><h1>Pi-hole</h1><span class="status-pill status-muted" data-bind="pihole-pill">&hellip;</span>
+        <span class="page-sub">Last 24 hours</span></header>
+      <div data-bind="pihole-off" hidden></div>
+      <div class="stack" data-show="pihole">
+        <div class="stat-tiles" id="ph-tiles"></div>
+        <div class="grid-2">
+          <div class="card"><span class="card-label">Total queries</span><div class="chart" id="ph-history"></div></div>
+          <div class="card"><span class="card-label">Client activity</span><div class="chart" id="ph-clients-chart"></div></div>
+        </div>
+        <div class="grid-5">
+          <div class="card"><span class="card-label">Query types</span><div id="ph-types"></div></div>
+          <div class="card"><span class="card-label">Upstream servers</span><div id="ph-upstreams"></div></div>
+          <div class="card"><span class="card-label">Top permitted domains</span><div id="ph-top-allowed"></div></div>
+          <div class="card"><span class="card-label">Top blocked domains</span><div id="ph-top-blocked"></div></div>
+          <div class="card"><span class="card-label">Top clients</span><div id="ph-top-clients"></div></div>
+        </div>
       </div>
     </section>
-  </div>
 
-  <script src="/app.js"></script>
+    <section class="page" data-page="jellyfin" hidden>
+      <header class="page-head"><h1>Jellyfin</h1><span class="status-pill status-muted" data-bind="jellyfin-pill">&hellip;</span></header>
+      <div data-bind="jellyfin-off" hidden></div>
+      <div class="stack" data-show="jellyfin">
+        <div class="stat-tiles" id="jf-tiles"></div>
+        <div class="card"><span class="card-label">Now playing</span><div id="jf-playing"></div></div>
+        <div class="card"><span class="card-label">Recently added</span><div class="poster-grid" id="jf-recent"></div></div>
+        <div class="card"><span class="card-label">Users</span><div id="jf-users"></div></div>
+      </div>
+    </section>
+
+    <section class="page" data-page="finance" hidden>
+      <header class="page-head"><h1>Finance</h1></header>
+      <div data-bind="finance-off" hidden></div>
+      <div class="grid-2" data-show="finance">
+        <div class="card"><span class="card-label">Net worth</span><div id="fin-networth"></div></div>
+        <div class="card"><span class="card-label">Recent transactions</span><div id="fin-transactions"></div></div>
+      </div>
+    </section>
+
+    <section class="page" data-page="services" hidden>
+      <header class="page-head"><h1>Services</h1>
+        <span class="page-sub">The small address under each name skips the reverse proxy, for when NPM or Pi-hole is down.</span></header>
+      <div class="tile-grid" id="tile-grid"><p class="loading">Loading services&hellip;</p></div>
+    </section>
+
+  </main>
+</div>
+
+<script src="/nav.js"></script>
+<script src="/charts.js"></script>
+<script src="/app.js"></script>
 </body>
 </html>

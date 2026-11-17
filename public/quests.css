@@ -5,7 +5,6 @@
 
 .qb-page{ max-width:1240px; }
 .qb-header{ flex-direction:row; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap; }
-.qb-back{ text-decoration:none; }
 .qb-today{ font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--ink-muted); }
 
 /* player bar */
