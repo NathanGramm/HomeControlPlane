@@ -281,6 +281,9 @@ function parsePlayerList(text) {
 // GET /:server/console -> server-sent events, one log line per message, then
 // an `end` event when the container stops. Ends with the client too.
 const ANSI = /\x1b\[[0-9;?]*[A-Za-z]/g;
+// The server logs a pair of these for every RCON connection, so each console
+// command or Players load added two lines. Still in the server's own log.
+const RCON_NOISE = /Thread RCON Client .* (started|shutting down)$/;
 router.get('/:server/console', async (req, res) => {
   let stream;
   let tty;
@@ -300,7 +303,10 @@ router.get('/:server/console', async (req, res) => {
   const send = (chunk) => {
     const lines = (partial + decoder.write(chunk)).split('\n');
     partial = lines.pop();
-    for (const line of lines) res.write(`data: ${line.replace(ANSI, '').replace(/\r/g, '')}\n\n`);
+    for (const raw of lines) {
+      const line = raw.replace(ANSI, '').replace(/\r/g, '');
+      if (!RCON_NOISE.test(line)) res.write(`data: ${line}\n\n`);
+    }
   };
   if (tty) {
     stream.on('data', send);

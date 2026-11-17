@@ -159,10 +159,11 @@ test('the console streams log lines without colors, then ends', async () => {
   logStream = new PassThrough();
   const res = await fetch(`${base}/console`);
   assert.strictEqual(res.headers.get('content-type'), 'text/event-stream');
-  logStream.write('\x1b[32mDone (5s)!\x1b[0m\r\nhal');
-  logStream.end('f line\n');
+  logStream.write('\x1b[32mDone (5s)!\x1b[0m\r\n[20:05:27 INFO]: Thread RCON Client /172.21.0.10 started\r\nhal');
+  logStream.end('f line\n[20:05:27 INFO]: Thread RCON Client /172.21.0.10 shutting down\n');
   const text = await res.text();
   assert.match(text, /data: Done \(5s\)!\n\n/);
   assert.match(text, /data: half line\n\n/);
+  assert.doesNotMatch(text, /RCON Client/);
   assert.match(text, /event: end/);
 });
