@@ -130,7 +130,7 @@ services:
   # the server is stopped, then backs up once it's up and every
   # BACKUP_INTERVAL after. DriveBackupV2 (a plugin) is the off-site copy.
   family-minecraft-backup:
-    image: itzg/mc-backup:latest
+    image: itzg/mc-backup:2026.11.0   # pinned: backups should change on purpose
     container_name: family-minecraft-backup
     restart: unless-stopped
     environment:
@@ -161,7 +161,7 @@ services:
   # Same as family-minecraft-backup, for GTNH. The mod's own backups (in
   # ~/GTNHServer/backups, on the root disk) are excluded from the copy.
   gtnh-minecraft-backup:
-    image: itzg/mc-backup:latest
+    image: itzg/mc-backup:2026.11.0   # pinned: backups should change on purpose
     container_name: gtnh-minecraft-backup
     restart: unless-stopped
     environment:
