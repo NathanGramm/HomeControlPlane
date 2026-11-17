@@ -51,8 +51,8 @@ function showEvent(e) {
     case 'damage': return toast(`&minus;${e.amount} HP`, 'bad');
     case 'faint': return toast('You fainted. Lost this level\'s progress and half your gold.', 'big bad');
     case 'missed': return toast(`Missed yesterday: ${e.titles.map(esc).join(', ')}`, 'bad');
-    case 'achievement': return toast(`${e.icon} Achievement unlocked: <b>${esc(e.name)}</b>`, 'big');
-    case 'drop': return toast(`${e.icon} Found: <b>${esc(e.name)}</b> (${RARITY_LABEL[e.rarity]})`, `drop-${e.rarity}`);
+    case 'achievement': return toast(`${icon(e.icon)} Achievement unlocked: <b>${esc(e.name)}</b>`, 'big');
+    case 'drop': return toast(`${icon(e.icon)} Found: <b>${esc(e.name)}</b> (${RARITY_LABEL[e.rarity]})`, `drop-${e.rarity}`);
     case 'quest-complete': return toast(`Quest line complete: <b>${esc(e.title)}</b> &middot; +${e.gold} gold`, 'big');
     case 'freeze-earned': return toast(`${icon('snowflake')} Streak freeze earned (${e.freezes}/3)`, 'good');
     case 'freeze-used': return toast(`${icon('snowflake')} Used ${e.count} streak freeze${e.count > 1 ? 's' : ''}. Streak saved.`);
@@ -181,7 +181,7 @@ function renderAchievements() {
     const hidden = a.secret && !when;
     const pct = a.goal && !when ? Math.min(100, (a.progress / a.goal) * 100) : 0;
     return `<div class="qb-badge ${when ? 'got' : 'locked'}" title="${hidden ? 'Secret achievement' : esc(a.desc)}">
-      <span class="qb-badge-icon">${hidden ? '❔' : a.icon}</span>
+      <span class="qb-badge-icon">${icon(hidden ? 'help' : a.icon)}</span>
       <span class="qb-badge-name">${hidden ? '???' : esc(a.name)}</span>
       <span class="qb-badge-desc">${hidden ? 'Secret' : when ? `Earned ${esc(when)}` : esc(a.desc)}</span>
       ${a.goal && !when && !hidden ? `${bar(pct, 'ach')}<span class="qb-badge-desc">${Math.min(a.progress, a.goal).toLocaleString()} / ${a.goal.toLocaleString()}</span>` : ''}
@@ -207,7 +207,7 @@ function renderCollection() {
       <div class="qb-items">${its.map((i) => {
         const n = S.collection[i.id];
         return `<div class="qb-item r-${i.rarity} ${n ? '' : 'missing'}" title="${n ? esc(i.name) : '???'} · ${RARITY_LABEL[i.rarity]}">
-          <span class="qb-item-icon">${n ? i.icon : '?'}</span>${n > 1 ? `<span class="qb-item-count">×${n}</span>` : ''}</div>`;
+          <span class="qb-item-icon">${n ? icon(i.icon) : '?'}</span>${n > 1 ? `<span class="qb-item-count">×${n}</span>` : ''}</div>`;
       }).join('')}</div></div>`;
   }).join('');
 }

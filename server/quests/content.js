@@ -8,39 +8,39 @@ const RARITY_WEIGHTS = { common: 60, uncommon: 25, rare: 11, epic: 3.5, legendar
 
 const SETS = [
   { id: 'rack', name: 'Server rack', items: [
-    ['patch-cable', 'Patch cable', '🔌', 'common'], ['zip-tie', 'Zip tie', '🪢', 'common'],
-    ['rack-screw', 'Rack screw', '🔩', 'common'], ['thermal-paste', 'Thermal paste', '🧴', 'common'],
-    ['rubber-duck', 'Debugging duck', '🦆', 'uncommon'], ['spare-ssd', 'Spare SSD', '💾', 'uncommon'],
-    ['golden-sfp', 'Golden SFP module', '📡', 'rare'], ['uptime-counter', 'Ten-year uptime counter', '⏱️', 'epic'],
+    ['patch-cable', 'Patch cable', 'plug', 'common'], ['zip-tie', 'Zip tie', 'zip-tie', 'common'],
+    ['rack-screw', 'Rack screw', 'screw', 'common'], ['thermal-paste', 'Thermal paste', 'tube', 'common'],
+    ['rubber-duck', 'Debugging duck', 'duck', 'uncommon'], ['spare-ssd', 'Spare SSD', 'ssd', 'uncommon'],
+    ['golden-sfp', 'Golden SFP module', 'antenna', 'rare'], ['uptime-counter', 'Ten-year uptime counter', 'stopwatch', 'epic'],
   ] },
   { id: 'mine', name: 'Deep mine', items: [
-    ['coal', 'Coal lump', '⚫', 'common'], ['copper', 'Copper ore', '🟠', 'common'],
-    ['iron', 'Iron nugget', '⚙️', 'common'], ['quartz', 'Quartz shard', '🔷', 'common'],
-    ['amethyst', 'Amethyst cluster', '🟣', 'uncommon'], ['ruby', 'Ruby', '🔴', 'uncommon'],
-    ['meteorite', 'Meteorite fragment', '☄️', 'rare'], ['star-core', 'Star core', '🌟', 'epic'],
+    ['coal', 'Coal lump', 'rock', 'common'], ['copper', 'Copper ore', 'ore', 'common'],
+    ['iron', 'Iron nugget', 'gear', 'common'], ['quartz', 'Quartz shard', 'crystal', 'common'],
+    ['amethyst', 'Amethyst cluster', 'cluster', 'uncommon'], ['ruby', 'Ruby', 'ruby', 'uncommon'],
+    ['meteorite', 'Meteorite fragment', 'comet', 'rare'], ['star-core', 'Star core', 'sparkle', 'epic'],
   ] },
   { id: 'kitchen', name: 'Kitchen', items: [
-    ['garlic', 'Garlic clove', '🧄', 'common'], ['chili', 'Chili pepper', '🌶️', 'common'],
-    ['wooden-spoon', 'Wooden spoon', '🥄', 'common'], ['cast-iron', 'Cast iron pan', '🍳', 'common'],
-    ['sourdough', 'Sourdough starter', '🍞', 'uncommon'], ['saffron', 'Saffron thread', '🌼', 'uncommon'],
-    ['truffle', 'Black truffle', '🍄', 'rare'], ['recipe-card', "Grandma's recipe card", '📜', 'epic'],
+    ['garlic', 'Garlic clove', 'garlic', 'common'], ['chili', 'Chili pepper', 'chili', 'common'],
+    ['wooden-spoon', 'Wooden spoon', 'spoon', 'common'], ['cast-iron', 'Cast iron pan', 'pan', 'common'],
+    ['sourdough', 'Sourdough starter', 'bread', 'uncommon'], ['saffron', 'Saffron thread', 'leaf', 'uncommon'],
+    ['truffle', 'Black truffle', 'mushroom', 'rare'], ['recipe-card', "Grandma's recipe card", 'scroll', 'epic'],
   ] },
   { id: 'dojo', name: 'Dojo', items: [
-    ['chalk', 'Chalk block', '🧱', 'common'], ['jump-rope', 'Jump rope', '🪢', 'common'],
-    ['band', 'Resistance band', '➰', 'common'], ['mat', 'Yoga mat', '🧘', 'common'],
-    ['pullup-bar', 'Pull-up bar', '🏋️', 'uncommon'], ['rings', 'Gymnastics rings', '⭕', 'uncommon'],
-    ['black-belt', 'Black belt', '🥋', 'rare'], ['golden-kettlebell', 'Golden kettlebell', '🏆', 'epic'],
+    ['chalk', 'Chalk block', 'brick', 'common'], ['jump-rope', 'Jump rope', 'jump-rope', 'common'],
+    ['band', 'Resistance band', 'band', 'common'], ['mat', 'Yoga mat', 'mat', 'common'],
+    ['pullup-bar', 'Pull-up bar', 'pullup-bar', 'uncommon'], ['rings', 'Gymnastics rings', 'rings', 'uncommon'],
+    ['black-belt', 'Black belt', 'belt', 'rare'], ['golden-kettlebell', 'Golden kettlebell', 'kettlebell', 'epic'],
   ] },
   { id: 'cinema', name: 'Cinema', items: [
-    ['popcorn', 'Popcorn', '🍿', 'common'], ['ticket', 'Ticket stub', '🎟️', 'common'],
-    ['blank-dvd', 'Blank DVD', '💿', 'common'], ['remote', 'Remote control', '📺', 'common'],
-    ['film-reel', 'Film reel', '🎞️', 'uncommon'], ['bluray', 'Blu-ray box set', '📀', 'uncommon'],
-    ['directors-chair', "Director's chair", '🎬', 'rare'], ['projector', 'Vintage projector', '📽️', 'epic'],
+    ['popcorn', 'Popcorn', 'popcorn', 'common'], ['ticket', 'Ticket stub', 'ticket', 'common'],
+    ['blank-dvd', 'Blank DVD', 'disc', 'common'], ['remote', 'Remote control', 'tv', 'common'],
+    ['film-reel', 'Film reel', 'film-reel', 'uncommon'], ['bluray', 'Blu-ray box set', 'box-set', 'uncommon'],
+    ['directors-chair', "Director's chair", 'clapper', 'rare'], ['projector', 'Vintage projector', 'projector', 'epic'],
   ] },
   { id: 'relics', name: 'Legendary relics', items: [
-    ['phoenix-feather', 'Phoenix feather', '🪶', 'legendary'], ['infinite-mug', 'Bottomless coffee mug', '☕', 'legendary'],
-    ['ancient-keyboard', 'Ancient mechanical keyboard', '⌨️', 'legendary'], ['crown', 'Crown of consistency', '👑', 'legendary'],
-    ['dragon-egg', 'Dragon egg', '🥚', 'legendary'],
+    ['phoenix-feather', 'Phoenix feather', 'feather', 'legendary'], ['infinite-mug', 'Bottomless coffee mug', 'mug', 'legendary'],
+    ['ancient-keyboard', 'Ancient mechanical keyboard', 'keyboard', 'legendary'], ['crown', 'Crown of consistency', 'crown', 'legendary'],
+    ['dragon-egg', 'Dragon egg', 'egg', 'legendary'],
   ] },
 ];
 
@@ -67,63 +67,63 @@ const tiers = (key, icon, stat, desc, list, extra = {}) =>
 const n = (x) => x.toLocaleString('en-US');
 
 const ACHIEVEMENTS = [
-  ...tiers('tasks', '✅', 'tasksDone', (g) => `Complete ${n(g)} dailies and to-dos`, [
+  ...tiers('tasks', 'check-circle', 'tasksDone', (g) => `Complete ${n(g)} dailies and to-dos`, [
     [1, 'First step'], [10, 'Warming up'], [50, 'Momentum'], [100, 'Centurion'], [250, 'Grinder'],
     [500, 'Machine'], [1000, 'Thousand-task titan'], [2500, 'Relentless'], [5000, 'Unstoppable'], [10000, 'Mythic doer'],
   ]),
-  ...tiers('streak', '🔥', 'bestStreak', (g) => `Reach a ${n(g)}-day streak`, [
+  ...tiers('streak', 'flame', 'bestStreak', (g) => `Reach a ${n(g)}-day streak`, [
     [3, 'Spark'], [7, 'Week warrior'], [14, 'Fortnight'], [30, 'Monthly devotion'], [60, 'Two-month tenacity'],
     [100, 'Triple digits'], [180, 'Half-year hero'], [365, 'Year of fire'], [730, 'Two-year flame'], [1000, 'Eternal flame'],
   ]),
-  ...tiers('level', '⭐', 'level', (g) => `Reach level ${g}`, [
+  ...tiers('level', 'star', 'level', (g) => `Reach level ${g}`, [
     [5, 'Apprentice'], [10, 'Journeyman'], [20, 'Adept'], [30, 'Veteran'], [50, 'Master'], [75, 'Grandmaster'], [100, 'Legend'],
   ]),
-  ...tiers('dailies', '📅', 'dailiesDone', (g) => `Complete ${n(g)} dailies`, [
+  ...tiers('dailies', 'calendar-check', 'dailiesDone', (g) => `Complete ${n(g)} dailies`, [
     [25, 'Routine rookie'], [100, 'Creature of habit'], [500, 'Clockwork'], [1000, 'Ritualist'],
     [2500, 'Unbreakable routine'], [5000, 'Living metronome'],
   ]),
-  ...tiers('perfect', '💎', 'perfectDays', (g) => `Finish every due daily on ${n(g)} days`, [
+  ...tiers('perfect', 'gem', 'perfectDays', (g) => `Finish every due daily on ${n(g)} days`, [
     [1, 'Flawless'], [10, 'Clean sweep'], [50, 'Perfectionist'], [100, 'Hundred perfect days'], [365, 'Year of perfection'],
   ]),
-  ...tiers('perfect-run', '🌈', 'bestPerfectRun', (g) => `${g} perfect days in a row`, [
+  ...tiers('perfect-run', 'rainbow', 'bestPerfectRun', (g) => `${g} perfect days in a row`, [
     [7, 'Perfect week'], [30, 'Perfect month'], [100, 'Perfect season'],
   ]),
-  ...tiers('habits', '➕', 'habitUps', (g) => `Tap a good habit ${n(g)} times`, [
+  ...tiers('habits', 'plus-circle', 'habitUps', (g) => `Tap a good habit ${n(g)} times`, [
     [10, 'Good vibes'], [100, 'Habit builder'], [500, 'Second nature'], [1000, 'Habit forged'], [5000, 'Rewired'],
   ]),
-  ...tiers('quests', '🗺️', 'questsDone', (g) => `Finish ${g} quest line${g > 1 ? 's' : ''}`, [
+  ...tiers('quests', 'map', 'questsDone', (g) => `Finish ${g} quest line${g > 1 ? 's' : ''}`, [
     [1, 'Quest complete'], [3, 'Adventurer'], [5, 'Hero of the homelab'], [10, 'Saga'], [25, 'Epic cycle'], [50, 'Living legend'],
   ]),
-  ...tiers('gold', '🪙', 'goldEarned', (g) => `Earn ${n(g)} gold in total`, [
+  ...tiers('gold', 'coin', 'goldEarned', (g) => `Earn ${n(g)} gold in total`, [
     [500, 'Pocket money'], [2500, 'Coin purse'], [10000, 'Treasure chest'], [50000, 'Dragon hoard'], [100000, 'Midas touch'],
   ]),
-  ...tiers('rewards', '🎁', 'rewardsBought', (g) => `Redeem ${g} reward${g > 1 ? 's' : ''}`, [
+  ...tiers('rewards', 'gift', 'rewardsBought', (g) => `Redeem ${g} reward${g > 1 ? 's' : ''}`, [
     [1, 'Treat yourself'], [10, 'Earned it'], [50, 'Connoisseur'], [100, 'Living well'],
   ]),
-  ...tiers('active', '📆', 'activeDays', (g) => `Be active on ${n(g)} different days`, [
+  ...tiers('active', 'calendar', 'activeDays', (g) => `Be active on ${n(g)} different days`, [
     [30, 'Regular'], [100, 'Hundred days'], [365, 'A year in the game'], [730, 'Two years strong'], [1825, 'Five-year veteran'],
   ]),
-  ...tiers('weekends', '🏕️', 'fullWeekends', (g) => `Get things done on both days of ${g} weekends`, [
+  ...tiers('weekends', 'tent', 'fullWeekends', (g) => `Get things done on both days of ${g} weekends`, [
     [4, 'Weekend warrior'], [26, 'Never off'], [52, 'Year of weekends'],
   ]),
-  ...tiers('anniversary', '🎂', 'daysSinceStart', (g) => `Keep the board going for ${g / 365} year${g > 365 ? 's' : ''}`, [
+  ...tiers('anniversary', 'cake', 'daysSinceStart', (g) => `Keep the board going for ${g / 365} year${g > 365 ? 's' : ''}`, [
     [365, 'First anniversary'], [1095, 'Three-year veteran'], [1825, 'Five-year legend'],
   ]),
-  ...tiers('items', '🧳', 'uniqueItems', (g) => `Collect ${g} different items`, [
+  ...tiers('items', 'backpack', 'uniqueItems', (g) => `Collect ${g} different items`, [
     [1, 'Finders keepers'], [10, 'Collector'], [25, 'Curator'], [ITEMS.length, 'Completionist'],
   ]),
-  ...tiers('hoard', '💰', 'gold', (g) => `Hold ${n(g)} gold at once`, [[1000, 'Saver'], [5000, 'Tycoon']]),
+  ...tiers('hoard', 'coins', 'gold', (g) => `Hold ${n(g)} gold at once`, [[1000, 'Saver'], [5000, 'Tycoon']]),
   ...SETS.map((set) => ({
     id: `set-${set.id}`, name: `${set.name} complete`, icon: set.items[set.items.length - 1][2],
     desc: `Collect every item in the ${set.name.toLowerCase()} set`,
     test: (s) => set.items.every(([id]) => s.collection[id]),
   })),
-  ...tiers('night', '🦉', 'nightOwl', () => 'Complete something between midnight and 4am', [[1, 'Night owl']], { secret: true }),
-  ...tiers('early', '🐓', 'earlyBird', () => 'Complete something between 4am and 6am', [[1, 'Early bird']], { secret: true }),
-  ...tiers('clutch', '🩹', 'clutch', () => 'Complete something with 10 HP or less', [[1, 'Clutch']], { secret: true }),
-  ...tiers('comeback', '🐦‍🔥', 'comebacks', () => 'Get back to work after fainting', [[1, 'Back from the brink']], { secret: true }),
+  ...tiers('night', 'moon', 'nightOwl', () => 'Complete something between midnight and 4am', [[1, 'Night owl']], { secret: true }),
+  ...tiers('early', 'sunrise', 'earlyBird', () => 'Complete something between 4am and 6am', [[1, 'Early bird']], { secret: true }),
+  ...tiers('clutch', 'bandage', 'clutch', () => 'Complete something with 10 HP or less', [[1, 'Clutch']], { secret: true }),
+  ...tiers('comeback', 'heart-pulse', 'comebacks', () => 'Get back to work after fainting', [[1, 'Back from the brink']], { secret: true }),
   {
-    id: 'inbox-zero', name: 'Inbox zero', icon: '📭', secret: true,
+    id: 'inbox-zero', name: 'Inbox zero', icon: 'inbox', secret: true,
     desc: 'Clear every to-do on the board (at least 5)',
     test: (s) => s.todos.length >= 5 && s.todos.every((t) => t.done),
   },
