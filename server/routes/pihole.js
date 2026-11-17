@@ -41,7 +41,8 @@ const domains = (r) => (r?.domains || []).map((d) => ({ domain: d.domain, count:
 
 // Pi-hole lists "blocklist" and "cache" alongside real upstreams; label
 // those plainly and real ones as name#port, like Pi-hole's own UI.
-const upstreamLabel = (u) => (u.port > 0 ? `${u.name || u.ip}#${u.port}` : u.name || u.ip);
+// Real upstreams show their IP too, since e.g. 8.8.8.8 and 8.8.4.4 share the name dns.google.
+const upstreamLabel = (u) => (u.port > 0 ? (u.name && u.name !== u.ip ? `${u.name} (${u.ip})` : `${u.ip}#${u.port}`) : u.name || u.ip);
 
 // Keeps the busiest clients and folds the rest into "other", so the client
 // activity chart stays readable with 14+ devices.
@@ -96,7 +97,7 @@ router.get('/summary', async (req, res) => {
     totalQueries: q.total ?? 0,
     blockedQueries: q.blocked ?? 0,
     percentBlocked: Math.round((q.percent_blocked ?? 0) * 10) / 10,
-    queriesPerMinute: Math.round((q.frequency ?? 0) * 10) / 10,
+    queriesPerMinute: Math.round((q.frequency ?? 0) * 60), // Pi-hole reports queries per second
     uniqueDomains: q.unique_domains ?? 0,
     activeClients: summary.clients?.active ?? 0,
     totalClients: summary.clients?.total ?? 0,

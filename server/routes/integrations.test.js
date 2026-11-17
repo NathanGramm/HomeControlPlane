@@ -102,11 +102,11 @@ test('Pi-hole: logs in once, reuses the session, and maps every stat', async () 
   await get('/api/pihole/summary');
   assert.strictEqual(logins, 1);
   assert.strictEqual(d.percentBlocked, 12.3);
-  assert.strictEqual(d.queriesPerMinute, 24);
+  assert.strictEqual(d.queriesPerMinute, 1442);
   assert.strictEqual(d.blocking, 'enabled');
   assert.deepStrictEqual(d.history, [{ t: 1, blocked: 3, allowed: 7 }, { t: 2, blocked: 0, allowed: 5 }]);
   assert.deepStrictEqual(d.queryTypes, [{ type: 'A', count: 60 }, { type: 'AAAA', count: 30 }]);
-  assert.deepStrictEqual(d.upstreams, [{ name: 'blocklist', count: 123 }, { name: 'dns.google#53', count: 400 }]);
+  assert.deepStrictEqual(d.upstreams, [{ name: 'blocklist', count: 123 }, { name: 'dns.google (8.8.8.8)', count: 400 }]);
   assert.deepStrictEqual(d.topAllowed, [{ domain: 'github.com', count: 90 }]);
   assert.deepStrictEqual(d.topBlocked, [{ domain: 'ads.example', count: 50 }]);
   assert.strictEqual(d.topClients[1].name, '10.0.0.2'); // unnamed clients fall back to their IP
