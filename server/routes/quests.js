@@ -32,6 +32,25 @@ function save() {
   fs.renameSync(tmp, FILE); // atomic swap, so a crash mid-write can't corrupt the board
 }
 
+// One dated copy per day in a second folder (the 4 TB disk in production),
+// so a lost volume or root disk costs at most a day. Keeps the last 30.
+const BACKUP_DIR = process.env.QUESTS_BACKUP_DIR || '';
+const KEEP_BACKUPS = 30;
+let backedUpDay = null;
+
+function backup(today) {
+  if (!BACKUP_DIR || backedUpDay === today || !fs.existsSync(FILE)) return;
+  try {
+    fs.mkdirSync(BACKUP_DIR, { recursive: true });
+    fs.copyFileSync(FILE, path.join(BACKUP_DIR, `quests-${today}.json`));
+    const old = fs.readdirSync(BACKUP_DIR).filter((n) => /^quests-\d{4}-\d\d-\d\d\.json$/.test(n)).sort().slice(0, -KEEP_BACKUPS);
+    for (const n of old) fs.unlinkSync(path.join(BACKUP_DIR, n));
+    backedUpDay = today;
+  } catch (err) {
+    console.error('Quest board backup failed:', err.message); // the board itself still works; retried next request
+  }
+}
+
 function clock() {
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat('en-CA', {
@@ -117,7 +136,12 @@ function parseWorkout(body, daily) {
     if (!ex || seen.has(e.exId)) throw new GameError(400, 'Unknown exercise in workout');
     seen.add(e.exId);
     if (!Array.isArray(e.sets) || e.sets.length > 10) throw new GameError(400, `${ex.name}: up to 10 sets`);
-    const sets = e.sets.filter((v) => v !== null && v !== '').map((v) => int(v, 0, 9999, `${ex.name} set`));
+    // Empty boxes at the end are sets not done; one in the middle would shift
+    // every later set into the wrong slot, so it's refused.
+    const empty = (v) => v === null || v === '';
+    const filled = e.sets.slice(0, e.sets.findLastIndex((v) => !empty(v)) + 1);
+    if (filled.some(empty)) throw new GameError(400, `${ex.name}: fill in every set before the last one, or clear the later ones`);
+    const sets = filled.map((v) => int(v, 0, 9999, `${ex.name} set`));
     if (!sets.length) continue; // skipped exercise
     const step = ex.steps.length ? int(e.step ?? ex.step, 0, ex.steps.length - 1, `${ex.name} step`) : 0;
     out.push({ exId: e.exId, step, sets });
@@ -193,6 +217,7 @@ const act = (fn) => (req, res) => {
     fn(s, req, ctx, events);
     engine.checkAchievements(s, ctx, events);
     if (req.method !== 'GET' || events.length || s.player.lastCronDay !== cronDay) save();
+    backup(ctx.today);
     res.json({ state: view(s, ctx), events });
   } catch (err) {
     if (err instanceof GameError) return res.status(err.status).json({ error: err.message });

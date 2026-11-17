@@ -2,7 +2,7 @@
 # and encodes into movies/final (deleting the source), which Jellyfin serves.
 services:
   makemkv:
-    image: jlesage/makemkv
+    image: jlesage/makemkv:v26.09.2   # pinned: upgrade on purpose by changing this tag
     container_name: makemkv
     ports:
       - "5800:5800"
@@ -17,7 +17,7 @@ services:
     restart: unless-stopped
 
   handbrake:
-    image: jlesage/handbrake
+    image: jlesage/handbrake:v26.09.1   # pinned: upgrade on purpose by changing this tag
     container_name: handbrake
     ports:
       - "5801:5800"

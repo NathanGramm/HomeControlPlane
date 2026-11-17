@@ -48,7 +48,6 @@ router.get('/ram', async (req, res) => {
 });
 
 async function getContainerMemory() {
-  if (!docker) return [];
 
   let list;
   try {

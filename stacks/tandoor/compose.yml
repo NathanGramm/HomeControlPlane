@@ -20,7 +20,7 @@ services:
       - proxy-network
 
   web_recipes:
-    image: vabene1111/recipes:latest
+    image: vabene1111/recipes:2.7.3   # pinned: a new version migrates its database, so upgrade on purpose
     container_name: tandoor_web
     restart: always
     ports:

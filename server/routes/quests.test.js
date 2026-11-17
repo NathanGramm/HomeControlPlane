@@ -7,6 +7,7 @@ const express = require('express');
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'quests-'));
 process.env.QUESTS_FILE = path.join(dir, 'quests.json');
+process.env.QUESTS_BACKUP_DIR = path.join(dir, 'backups');
 
 let server;
 let base;
@@ -35,6 +36,24 @@ test('first load seeds the board and saves it to disk', async () => {
   assert.strictEqual(status, 200);
   assert.ok(body.state.dailies.length > 0);
   assert.ok(fs.existsSync(process.env.QUESTS_FILE));
+});
+
+test('the board is copied to the backup folder once a day, keeping the last 30', async () => {
+  const backups = process.env.QUESTS_BACKUP_DIR;
+  const files = () => fs.readdirSync(backups).sort();
+  assert.strictEqual(files().length, 1);
+  assert.match(files()[0], /^quests-\d{4}-\d\d-\d\d\.json$/);
+  assert.ok(JSON.parse(fs.readFileSync(path.join(backups, files()[0]), 'utf8')).player);
+  // Older copies past the 30 newest are pruned on the next day's copy, which a restart forces here.
+  for (let i = 1; i <= 31; i++) fs.writeFileSync(path.join(backups, `quests-2000-01-${String(i).padStart(2, '0')}.json`), '{}');
+  delete require.cache[require.resolve('./quests')];
+  const app = express();
+  app.use('/api/quests', require('./quests'));
+  const other = await new Promise((resolve) => { const s = app.listen(0, () => resolve(s)); });
+  await fetch(`http://127.0.0.1:${other.address().port}/api/quests`);
+  other.close();
+  assert.strictEqual(files().length, 30);
+  assert.ok(!files().includes('quests-2000-01-01.json'));
 });
 
 test('a plain read does not rewrite the save file', async () => {
@@ -95,6 +114,9 @@ test('routines are validated, and a workout logs through the API', async () => {
   assert.strictEqual(r.status, 400);
   r = await call('POST', `/dailies/${d.id}/workout`, { exercises: [{ exId, sets: ['', null] }] });
   assert.strictEqual(r.status, 400); // nothing entered
+  r = await call('POST', `/dailies/${d.id}/workout`, { exercises: [{ exId, sets: [null, 5] }] });
+  assert.strictEqual(r.status, 400); // a gap would move set 2 into set 1's slot
+  assert.match(r.body.error, /fill in every set/);
 
   r = await call('POST', `/dailies/${d.id}/workout`, { exercises: [{ exId, step: 1, sets: [4, ''] }] });
   assert.strictEqual(r.status, 200);

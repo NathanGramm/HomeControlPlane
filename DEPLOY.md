@@ -17,7 +17,9 @@ Each stack is one folder in `stacks/`:
 Portainer itself runs outside any stack.
 
 The quest board's progress lives in the `dashboard_quests_data` volume (one
-JSON file). Include it in backups.
+JSON file). The app copies it to `/mnt/storage4t/backups/quests` once a day
+and keeps the last 30. To restore, stop the dashboard, copy a
+`quests-<date>.json` over `quests.json` in the volume, and start it again.
 
 A folder with secrets has a `.env.example` listing them. Stacks that need to
 reach each other by container name join the existing external Docker

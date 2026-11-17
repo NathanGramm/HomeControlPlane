@@ -164,7 +164,7 @@ const MC_SERVERS = ['gtnh', 'family'];
 const mcBusy = {};
 
 function renderMinecraft(id, data) {
-  const { container, server, blockedBy, lastBackupAt } = data;
+  const { container, server, blockedBy, stopping, lastBackupAt } = data;
   // Backups run every 6 h while the server is up, so a running server with
   // nothing newer than 7 h means they've stopped. Also true for the first
   // couple of minutes after starting a server that was off for a while.
@@ -175,7 +175,10 @@ function renderMinecraft(id, data) {
     const detail = v.querySelector('.mc-detail');
     const btn = v.querySelector('.mc-btn');
     const info = v.querySelector('.mc-info');
-    if (server?.online) {
+    if (stopping) {
+      setPill(pill, 'stopping…', 'warn');
+      detail.textContent = 'Saving the world and shutting down. GTNH can take several minutes.';
+    } else if (server?.online) {
       setPill(pill, 'online', 'good');
       detail.textContent = server.players == null
         ? 'Joinable. Player count is hidden.'
@@ -198,6 +201,9 @@ function renderMinecraft(id, data) {
     delete btn.dataset.action;
     if (!container.found) {
       btn.textContent = 'Container not found';
+    } else if (stopping) {
+      btn.disabled = true;
+      btn.textContent = 'Stopping…';
     } else if (container.state === 'running') {
       btn.textContent = 'Stop server';
       btn.dataset.action = 'stop';

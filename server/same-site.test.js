@@ -13,6 +13,7 @@ test('writes from other websites are refused; reads and own-site writes pass', a
   try {
     assert.strictEqual(await status('POST', 'cross-site'), 403);
     assert.strictEqual(await status('DELETE', 'cross-site'), 403);
+    assert.strictEqual(await status('POST', 'same-site'), 403); // another *.marshmallowmc.com app
     assert.strictEqual(await status('GET', 'cross-site'), 200);
     assert.strictEqual(await status('POST', 'same-origin'), 200);
     assert.strictEqual(await status('POST'), 200);

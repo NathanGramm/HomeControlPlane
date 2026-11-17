@@ -149,7 +149,7 @@ server, and is closed out before the next one starts.
 - [x] **Phase 3: Finances.** Firefly III with its own MariaDB, a daily cron companion, a manual statement importer, and a dashboard summary.
 - [x] **Phase 4: Quest board.** A self-hosted, game-style task tracker with habits, dailies, quest lines, rewards, achievements and collectibles. The roadmap below lives there now.
 - [x] **Phase 5: Pi-hole and Jellyfin pages.** A sidebar with an overview page and a detail page per service, including Pi-hole charts and Jellyfin posters.
-- [ ] **Phase 6: Calisthenics tracker.** A routine builder, then session logging, then a feedback engine that adjusts routines based on logged sessions. Each step depends on the previous one. Logged sessions could earn quest board XP.
+- [x] **Phase 6: Calisthenics tracker.** Routines on dailies, a workout logger with a rest timer and per-exercise history, and a feedback engine that suggests moving up, dropping back, pushing or resting. Logging a workout completes its daily, so it earns quest board XP.
 
 **Operational follow-ups**
 

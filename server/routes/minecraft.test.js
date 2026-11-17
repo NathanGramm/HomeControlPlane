@@ -13,6 +13,7 @@ let states;
 let statuses;
 let started;
 let lookupsFail;
+let stopGate; // resolve() to let a pending docker stop finish
 
 const fakeDocker = {
   listContainers: async ({ filters }) => {
@@ -27,6 +28,7 @@ const fakeDocker = {
       await new Promise((resolve) => setTimeout(resolve, 10));
       started.push(id);
     },
+    stop: () => new Promise((resolve) => { stopGate = () => { states[id] = 'exited'; resolve(); }; }),
   }),
 };
 require.cache[require.resolve('../docker')] = { exports: fakeDocker };
@@ -140,4 +142,19 @@ test('status reports the newest backup, or null when there is none', async () =>
   assert.strictEqual(family.lastBackupAt, newer.toISOString());
   const gtnh = await (await fetch(`${base}/gtnh/status`)).json();
   assert.strictEqual(gtnh.lastBackupAt, null);
+});
+
+test('stop answers right away and status says stopping until Docker is done', async () => {
+  states['gtnh-minecraft'] = 'running';
+  const res = await fetch(`${base}/gtnh/stop`, { method: 'POST' });
+  assert.strictEqual(res.status, 202);
+  const status = () => fetch(`${base}/gtnh/status`).then((r) => r.json());
+  assert.strictEqual((await status()).stopping, true);
+  // A second click while stopping doesn't send another stop.
+  assert.strictEqual((await fetch(`${base}/gtnh/stop`, { method: 'POST' })).status, 202);
+  stopGate();
+  await new Promise((r) => setTimeout(r, 10));
+  const after = await status();
+  assert.strictEqual(after.stopping, false);
+  assert.strictEqual(after.container.state, 'exited');
 });

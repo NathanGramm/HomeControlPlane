@@ -1,20 +1,14 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const express = require('express');
-const docker = require('../docker');
-
-const router = express.Router();
-
 // minecraft-server-util speaks the server-list-ping protocol — this is what
 // tells us the world is actually joinable, which is a different thing from
 // "the container is running" (it can take a while after container start
 // before the world finishes loading and starts accepting connections).
-let mcUtil = null;
-try {
-  mcUtil = require('minecraft-server-util');
-} catch (err) {
-  console.warn('minecraft-server-util not available, live join status disabled:', err.message);
-}
+const mcUtil = require('minecraft-server-util');
+const docker = require('../docker');
+
+const router = express.Router();
 
 const SERVERS = {
   gtnh: {
@@ -53,6 +47,9 @@ async function lastBackup(server) {
 // two clicks can't both pass the "is the other server up?" check below.
 let startInProgress = false;
 
+// Servers whose docker stop is still running.
+const stopping = new Set();
+
 router.param('server', (req, res, next, id) => {
   if (!Object.hasOwn(SERVERS, id)) {
     return res.status(404).json({ error: `Unknown server '${id}'` });
@@ -62,7 +59,6 @@ router.param('server', (req, res, next, id) => {
 });
 
 async function lookupContainer(server) {
-  if (!docker) return null;
   const list = await docker.listContainers({
     all: true,
     // Docker's name filter is an unanchored regex on "/<name>", so without
@@ -95,7 +91,6 @@ async function findRunningOtherServer(server) {
 }
 
 async function pingServer(server) {
-  if (!mcUtil) return { online: false };
   try {
     // enableSRV off: host is a container name, so the SRV lookup can only miss,
     // and each miss went out to Pi-hole (~7k queries/day per server).
@@ -124,7 +119,7 @@ function isHealthy(containerInfo) {
   return typeof containerInfo?.Status === 'string' && containerInfo.Status.includes('(healthy)');
 }
 
-// GET /api/minecraft/:server/status -> { container: {found, state}, server: {...}, blockedBy, updatedAt }
+// GET /api/minecraft/:server/status -> { container: {found, state}, server: {...}, blockedBy, stopping, lastBackupAt, updatedAt }
 //
 // container.found tells the frontend whether start/stop can do anything.
 // server.online answers "can someone join right now" by pinging the server
@@ -150,6 +145,7 @@ router.get('/:server/status', async (req, res) => {
       container: { found: !!containerInfo, state },
       server,
       blockedBy: blocker ? blocker.label : null,
+      stopping: stopping.has(req.mcServer),
       lastBackupAt,
       updatedAt: new Date().toISOString(),
     });
@@ -187,18 +183,25 @@ router.post('/:server/start', async (req, res) => {
   }
 });
 
-// POST /api/minecraft/:server/stop -> stops the configured container
+// POST /api/minecraft/:server/stop -> starts stopping the configured container.
+// Answers right away: GTNH can take 8 minutes to save, far past the reverse
+// proxy's 60 s timeout. Status reports `stopping` until Docker is done.
 router.post('/:server/stop', async (req, res) => {
+  const server = req.mcServer;
+  if (stopping.has(server)) return res.status(202).json({ ok: true, stopping: true });
   try {
-    const containerInfo = await findContainer(req.mcServer);
+    const containerInfo = await findContainer(server);
     if (!containerInfo) {
-      return res.status(404).json({ error: `No container named '${req.mcServer.containerName}' found` });
+      return res.status(404).json({ error: `No container named '${server.containerName}' found` });
     }
     if (containerInfo.State !== 'running') {
       return res.json({ ok: true, alreadyStopped: true });
     }
-    await docker.getContainer(containerInfo.Id).stop();
-    res.json({ ok: true });
+    stopping.add(server);
+    docker.getContainer(containerInfo.Id).stop()
+      .catch((err) => console.error(`Stopping ${server.containerName} failed:`, err.message))
+      .finally(() => stopping.delete(server));
+    res.status(202).json({ ok: true, stopping: true });
   } catch (err) {
     console.error('POST /api/minecraft/stop failed:', err.message);
     res.status(500).json({ error: 'Could not stop the Minecraft container' });

@@ -1,7 +1,7 @@
 # Jellyfin. Serves what the rippers stack produces in /mnt/storage4t.
 services:
   jellyfin:
-    image: lscr.io/linuxserver/jellyfin:latest
+    image: lscr.io/linuxserver/jellyfin:12.4ubu2604-ls59   # pinned: upgrade on purpose by changing this tag
     container_name: jellyfin
     environment:
       - PUID=1000

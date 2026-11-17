@@ -15,11 +15,6 @@ function createClient() {
   return new Docker({ socketPath: '/var/run/docker.sock' });
 }
 
-let client = null;
-try {
-  client = createClient();
-} catch (err) {
-  console.warn('Docker client unavailable:', err.message);
-}
-
-module.exports = client;
+// Creating the client doesn't connect, so this only throws on a malformed
+// DOCKER_HOST, and failing at startup is the right answer then.
+module.exports = createClient();
