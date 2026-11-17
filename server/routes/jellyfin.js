@@ -9,7 +9,7 @@ const JELLYFIN_API_KEY = process.env.JELLYFIN_API_KEY || '';
 const AUTH = { Authorization: `MediaBrowser Token="${JELLYFIN_API_KEY}"` };
 
 async function jellyfinFetch(path) {
-  const res = await fetch(`${JELLYFIN_URL}${path}`, { headers: { ...AUTH, Accept: 'application/json' } });
+  const res = await fetch(`${JELLYFIN_URL}${path}`, { headers: { ...AUTH, Accept: 'application/json' }, signal: AbortSignal.timeout(5000) });
   if (!res.ok) throw new Error(`${path} -> ${res.status}`);
   return res.json();
 }
@@ -62,7 +62,7 @@ router.get('/image/:id', async (req, res) => {
   if (!JELLYFIN_API_KEY) return res.status(404).end();
   if (!/^[0-9a-f]{32}$/i.test(req.params.id)) return res.status(400).end(); // Jellyfin ids are 32 hex chars
   try {
-    const upstream = await fetch(`${JELLYFIN_URL}/Items/${req.params.id}/Images/Primary?maxHeight=300&quality=85`, { headers: AUTH });
+    const upstream = await fetch(`${JELLYFIN_URL}/Items/${req.params.id}/Images/Primary?maxHeight=300&quality=85`, { headers: AUTH, signal: AbortSignal.timeout(5000) });
     if (!upstream.ok) return res.status(upstream.status === 404 ? 404 : 502).end();
     res.set('Content-Type', upstream.headers.get('content-type') || 'image/jpeg');
     res.set('Cache-Control', 'private, max-age=86400');

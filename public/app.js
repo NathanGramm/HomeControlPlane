@@ -429,6 +429,10 @@ loadServices();
 fastTick();
 slowTick();
 refreshFinance();
-setInterval(fastTick, FAST_MS);
-setInterval(slowTick, SLOW_MS);
-setInterval(refreshFinance, FINANCE_MS);
+// Polls only while the tab is visible (the RAM refresh asks Docker for stats on
+// every container), and catches up at once when the tab comes back.
+const whenVisible = (fn) => () => { if (!document.hidden) fn(); };
+setInterval(whenVisible(fastTick), FAST_MS);
+setInterval(whenVisible(slowTick), SLOW_MS);
+setInterval(whenVisible(refreshFinance), FINANCE_MS);
+document.addEventListener('visibilitychange', whenVisible(() => { fastTick(); slowTick(); refreshFinance(); }));

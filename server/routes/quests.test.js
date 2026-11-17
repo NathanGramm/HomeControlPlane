@@ -37,6 +37,14 @@ test('first load seeds the board and saves it to disk', async () => {
   assert.ok(fs.existsSync(process.env.QUESTS_FILE));
 });
 
+test('a plain read does not rewrite the save file', async () => {
+  await call('GET', '/');
+  const before = fs.statSync(process.env.QUESTS_FILE).mtimeMs;
+  await new Promise((r) => setTimeout(r, 20));
+  await call('GET', '/');
+  assert.strictEqual(fs.statSync(process.env.QUESTS_FILE).mtimeMs, before);
+});
+
 test('create, edit, complete and delete a to-do', async () => {
   let r = await call('POST', '/todos', { title: 'Test task', difficulty: 'hard', questId: 'ram', checklist: ['a', 'b'] });
   assert.strictEqual(r.status, 200);

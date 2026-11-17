@@ -17,6 +17,7 @@ async function login() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({ password: PIHOLE_API_PASSWORD }),
+    signal: AbortSignal.timeout(5000), // a hung Pi-hole fails fast instead of piling up requests
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.session?.valid) throw new Error(`login rejected (${res.status})`);
@@ -28,7 +29,7 @@ async function piholeFetch(path, retry = true) {
     loggingIn ||= login().finally(() => { loggingIn = null; });
     await loggingIn;
   }
-  const res = await fetch(`${PIHOLE_URL}${path}`, { headers: { 'X-FTL-SID': sid, Accept: 'application/json' } });
+  const res = await fetch(`${PIHOLE_URL}${path}`, { headers: { 'X-FTL-SID': sid, Accept: 'application/json' }, signal: AbortSignal.timeout(5000) });
   if (res.status === 401 && retry) {
     sid = null; // session expired (e.g. Pi-hole restarted); log in again once
     return piholeFetch(path, false);

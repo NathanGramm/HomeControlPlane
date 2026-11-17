@@ -123,15 +123,18 @@ router.use(express.json({ limit: '50kb' }));
 
 // Every request runs the day rollover first, then the action, then
 // achievement checks, then saves and returns the whole board plus events.
+// A plain read only saves when the rollover or an achievement changed something,
+// so polling the board doesn't rewrite the file every 30 seconds.
 const act = (fn) => (req, res) => {
   try {
     const s = load();
     const ctx = clock();
     const events = [];
+    const cronDay = s.player.lastCronDay;
     engine.cron(s, ctx, events);
     fn(s, req, ctx, events);
     engine.checkAchievements(s, ctx, events);
-    save();
+    if (req.method !== 'GET' || events.length || s.player.lastCronDay !== cronDay) save();
     res.json({ state: view(s, ctx), events });
   } catch (err) {
     if (err instanceof GameError) return res.status(err.status).json({ error: err.message });

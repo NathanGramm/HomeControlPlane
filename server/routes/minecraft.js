@@ -52,12 +52,6 @@ async function lookupContainer(server) {
   return list[0] || null;
 }
 
-// True once the configured container actually exists — i.e. once Minecraft
-// has been containerized. Until then there's nothing for start/stop to
-// control, but the join-status ping below works either way: it's a plain
-// TCP server-list-ping, independent of how the process behind that port is
-// hosted (bare-metal + systemd today, a container later).
-
 async function findContainer(server) {
   try {
     return await lookupContainer(server);
@@ -103,10 +97,9 @@ async function pingServer(server) {
 
 // GET /api/minecraft/:server/status -> { container: {found, state}, server: {...}, blockedBy, updatedAt }
 //
-// container.found tells the frontend whether start/stop can do anything —
-// server.online is the real, independent answer to "can someone join right
-// now," fetched by ping regardless of container state so this stays useful
-// even before Minecraft is containerized. blockedBy names the other server
+// container.found tells the frontend whether start/stop can do anything.
+// server.online answers "can someone join right now" by pinging the server
+// (skipped while the container is stopped). blockedBy names the other server
 // when it's the reason this one can't start.
 router.get('/:server/status', async (req, res) => {
   try {

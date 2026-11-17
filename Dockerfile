@@ -2,8 +2,9 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-COPY package.json ./
-RUN npm install --omit=dev
+# The lockfile pins exact versions, so a redeploy can't pull an untested library.
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
 
 COPY server ./server
 COPY public ./public

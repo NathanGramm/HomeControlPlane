@@ -1,7 +1,7 @@
 {
   "name": "home-control-plane",
   "version": "0.1.0",
-  "description": "Phase 1+2: skeleton, service tiles, CPU/RAM vitals, and Minecraft on/off + live status.",
+  "description": "Home server dashboard: vitals, Minecraft control, Pi-hole, Jellyfin, Firefly and a quest board.",
   "main": "server/index.js",
   "type": "commonjs",
   "scripts": {

@@ -11,6 +11,7 @@ async function fireflyFetch(path) {
       Authorization: `Bearer ${FIREFLY_API_TOKEN}`,
       Accept: 'application/json',
     },
+    signal: AbortSignal.timeout(5000), // a hung Firefly fails fast instead of piling up requests
   });
   if (!res.ok) throw new Error(`${path} -> ${res.status}`);
   return res.json();
