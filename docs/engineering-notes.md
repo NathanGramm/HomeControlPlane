@@ -528,14 +528,14 @@ Two layers, because the old setup failed with nobody noticing:
   doesn't depend on any plugin or server type. It keeps running while the
   server is stopped and waits for RCON. It takes its first backup once the
   server is up. GTNH's then backs up every 6 hours. The family server's
-  only backs up again 6 hours after someone has been online: after each
-  backup it asks RCON's `list` every 5 minutes, and once a player shows up
-  it waits 6 hours and backs up. Idle days, running or stopped, add no
-  backups, so the newest 20 reach further back. A visit shorter than 5
-  minutes can slip between checks. The image's own player check is a
-  server-list ping, which the ping hiding blanks out, so the compose file
-  swaps in a small `mc-monitor` script (`rcon_player_count`) that answers
-  it over RCON.
+  checks every 6 hours and only backs up if someone joined or left since
+  the last backup, or is online right then. It learns about joins and
+  leaves by following the server's `logs/latest.log` (the same lines as
+  its console), so even a short visit counts. Idle days, running or
+  stopped, add no backups, so the newest 20 reach further back. The
+  schedule is the `backup_when_played` script in the compose file, in
+  place of the image's own loop. Each backup is still the image's
+  `backup now`.
 - **Off-site:** DriveBackupV2 uploads to Google Drive. Update it to 1.8.1
   or newer, and relink with `/drivebackup linkaccount googledrive` if the log
   shows auth errors. Test it with `/drivebackup backup`.
@@ -546,13 +546,10 @@ Check the local layer after any change:
 docker logs family-minecraft-backup --tail 20
 ls -lh /mnt/storage4t/backups/family-minecraft
 docker exec family-minecraft-backup backup now   # one-off backup
-# family server only: the player count it waits on (server must be running)
-docker exec family-minecraft-backup mc-monitor status --show-player-count
 ```
 
-While the family server is stopped, its backup log shows `Error querying
-the server, waiting 5m...` after the last backup. That's expected: RCON is
-down, so it keeps waiting.
+A skipped family backup logs `Nobody joined or left since the last backup,
+skipping`.
 
 To restore, stop the server and use **Restore** on the Minecraft page's
 Backups tab. It extracts the tar next to the server folder, then swaps in
