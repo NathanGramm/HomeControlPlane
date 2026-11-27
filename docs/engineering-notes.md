@@ -519,7 +519,7 @@ without a player count.
 
 Two layers, because the old setup failed with nobody noticing:
 
-- **Local, every 6 hours while the server runs:** `family-minecraft-backup`
+- **Local, every 6 hours while the server is in use:** `family-minecraft-backup`
   and `gtnh-minecraft-backup`
   ([itzg/mc-backup](https://github.com/itzg/docker-mc-backup)) write tar
   files to `/mnt/storage4t/backups/<server>`, keeping the newest 20 (and
@@ -527,7 +527,15 @@ Two layers, because the old setup failed with nobody noticing:
   the root disk is too full to hold them anyway. It pauses saving over RCON during each backup, and it
   doesn't depend on any plugin or server type. It keeps running while the
   server is stopped and waits for RCON. It takes its first backup once the
-  server is up, then one every 6 hours.
+  server is up. GTNH's then backs up every 6 hours. The family server's
+  checks every 6 hours and only backs up if someone joined or left since
+  the last backup, or is online right then. It learns about joins and
+  leaves by following the server's `logs/latest.log` (the same lines as
+  its console), so even a short visit counts. Idle days, running or
+  stopped, add no backups, so the newest 20 reach further back. The
+  schedule is the `backup_when_played` script in the compose file, in
+  place of the image's own loop. Each backup is still the image's
+  `backup now`.
 - **Off-site:** DriveBackupV2 uploads to Google Drive. Update it to 1.8.1
   or newer, and relink with `/drivebackup linkaccount googledrive` if the log
   shows auth errors. Test it with `/drivebackup backup`.
@@ -539,6 +547,9 @@ docker logs family-minecraft-backup --tail 20
 ls -lh /mnt/storage4t/backups/family-minecraft
 docker exec family-minecraft-backup backup now   # one-off backup
 ```
+
+A skipped family backup logs `Nobody joined or left since the last backup,
+skipping`.
 
 To restore, stop the server and use **Restore** on the Minecraft page's
 Backups tab. It extracts the tar next to the server folder, then swaps in

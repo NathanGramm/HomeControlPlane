@@ -128,12 +128,17 @@ services:
   # Local backups of the family server, independent of any plugin. Uses RCON
   # to pause saving, so the copy is consistent. Not behind the `family`
   # profile: it's a few MB of RAM, runs all the time, and just waits while
-  # the server is stopped, then backs up once it's up and every
-  # BACKUP_INTERVAL after. DriveBackupV2 (a plugin) is the off-site copy.
+  # the server is stopped, then backs up once it's up. After that it checks
+  # every BACKUP_INTERVAL and only backs up if the server log shows someone
+  # joining or leaving since the last backup, or someone is online, so idle
+  # days don't fill the folder with copies of the same world. The schedule
+  # is the backup_when_played script below, not the image's own loop.
+  # DriveBackupV2 (a plugin) is the off-site copy.
   family-minecraft-backup:
     image: itzg/mc-backup:2026.11.0   # pinned: backups should change on purpose
     container_name: family-minecraft-backup
     restart: unless-stopped
+    entrypoint: ["backup-when-played"]
     environment:
       - RCON_HOST=family-minecraft
       - RCON_PORT=25575
@@ -142,6 +147,7 @@ services:
       # (5 tries) would turn every stopped day into a failed backup.
       - RCON_RETRIES=-1
       - RCON_RETRY_INTERVAL=30s
+      # Both read by backup_when_played, not the image.
       - INITIAL_DELAY=2m
       - BACKUP_INTERVAL=6h
       - BACKUP_METHOD=tar
@@ -149,10 +155,11 @@ services:
       # an age-only rule would delete every older backup on the next run.
       - PRUNE_BACKUPS_COUNT=20
       - PRUNE_BACKUPS_DAYS=90
-      # Left false on purpose: the player check pings the server, and the
-      # ping-hiding plugin may answer this container with empty data.
-      - PAUSE_IF_NO_PLAYERS=false
       - TZ=America/New_York
+    configs:
+      - source: backup_when_played
+        target: /usr/local/bin/backup-when-played
+        mode: "0555"   # quoted: a string is always read as octal
     volumes:
       - /home/ncgramm/FamilyServer:/data:ro
       # The 4 TB disk, not ~/backups: the root disk is nearly full, and a copy
@@ -196,6 +203,44 @@ configs:
         {"$$set": {"path": "$$['unsupported-settings']['allow-headless-pistons']", "value": true}},
         {"$$set": {"path": "$$['unsupported-settings']['allow-permanent-block-break-exploits']", "value": true}}
       ]}]}
+  # family-minecraft-backup's schedule, in place of the image's `backup loop`.
+  # Each backup is the image's own `backup now` (RCON save-off, tar, prune).
+  # Joins and leaves come from the server's log file, which has the same
+  # lines as its console (`docker logs`) and is already mounted here, so this
+  # needs no Docker socket. Only "joined/left the game" count: a bot that
+  # fails the whitelist never gets that far. A leave counts too, so play by
+  # someone who was online during the last backup isn't missed. The one RCON
+  # `list` per interval covers someone online the whole time, e.g. AFK at a
+  # farm. The image's own player check (PAUSE_IF_NO_PLAYERS) is unusable
+  # here: it's a server-list ping, which the ping hiding blanks out.
+  backup_when_played:
+    content: |
+      #!/bin/bash
+      played=/tmp/played
+
+      # -F follows the new file after the log rotates (each server start and
+      # at midnight); -n0 skips what was logged before this container started.
+      tail -F -n0 /data/logs/latest.log 2>/dev/null | while read -r line; do
+        case $$line in *" joined the game"* | *" left the game"*) touch "$$played" ;; esac
+      done &
+
+      # "There are 1 of a max of 20 players online: Steve". False while stopped.
+      online_now() { [[ $$(rcon-cli list 2>/dev/null) =~ There\ are\ [1-9] ]]; }
+
+      # Pass a stop on, so a backup in progress turns saving back on first.
+      trap 'kill $$! 2>/dev/null; wait $$!; exit 0' TERM
+      run() { "$$@" & wait $$!; }
+
+      run sleep "$$INITIAL_DELAY"
+      while true; do
+        rm -f "$$played"
+        run backup now   # waits for RCON while the server is stopped
+        run sleep "$$BACKUP_INTERVAL"
+        until [[ -e $$played ]] || online_now; do
+          echo "$$(date +%FT%T%z) INFO Nobody joined or left since the last backup, skipping"
+          run sleep "$$BACKUP_INTERVAL"
+        done
+      done
 
 # Shared with the other stacks (NPM, Pi-hole, Tandoor already use it), so
 # containers reach each other by name across stacks, e.g. dashboard ->
