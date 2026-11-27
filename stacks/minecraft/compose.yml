@@ -128,8 +128,10 @@ services:
   # Local backups of the family server, independent of any plugin. Uses RCON
   # to pause saving, so the copy is consistent. Not behind the `family`
   # profile: it's a few MB of RAM, runs all the time, and just waits while
-  # the server is stopped, then backs up once it's up and every
-  # BACKUP_INTERVAL after. DriveBackupV2 (a plugin) is the off-site copy.
+  # the server is stopped, then backs up once it's up. After that it only
+  # backs up again BACKUP_INTERVAL after someone has been online, so idle
+  # days don't fill the folder with copies of the same world.
+  # DriveBackupV2 (a plugin) is the off-site copy.
   family-minecraft-backup:
     image: itzg/mc-backup:2026.11.0   # pinned: backups should change on purpose
     container_name: family-minecraft-backup
@@ -149,10 +151,17 @@ services:
       # an age-only rule would delete every older backup on the next run.
       - PRUNE_BACKUPS_COUNT=20
       - PRUNE_BACKUPS_DAYS=90
-      # Left false on purpose: the player check pings the server, and the
-      # ping-hiding plugin may answer this container with empty data.
-      - PAUSE_IF_NO_PLAYERS=false
+      # After each backup, wait until a player is online (checked every 5
+      # minutes), then back up BACKUP_INTERVAL later. The image checks with a
+      # server-list ping, which the ping hiding blanks out for this
+      # container, so the config below answers that check over RCON instead.
+      - PAUSE_IF_NO_PLAYERS=true
+      - PLAYERS_ONLINE_CHECK_INTERVAL=5m
       - TZ=America/New_York
+    configs:
+      - source: rcon_player_count
+        target: /usr/local/bin/mc-monitor   # ahead of the real one (/usr/bin) on PATH
+        mode: "0555"   # quoted: a string is always read as octal
     volumes:
       - /home/ncgramm/FamilyServer:/data:ro
       # The 4 TB disk, not ~/backups: the root disk is nearly full, and a copy
@@ -196,6 +205,27 @@ configs:
         {"$$set": {"path": "$$['unsupported-settings']['allow-headless-pistons']", "value": true}},
         {"$$set": {"path": "$$['unsupported-settings']['allow-permanent-block-break-exploits']", "value": true}}
       ]}]}
+  # Stands in for mc-monitor in family-minecraft-backup. PAUSE_IF_NO_PLAYERS
+  # runs `mc-monitor status --show-player-count`, a server-list ping, which
+  # Anti MOTD Scanner answers with empty data for an IP that never joined
+  # (and enable-status=false doesn't answer at all), so backups would stop
+  # for good. This reads the count from RCON's `list` instead, e.g. "There
+  # are 1 of a max of 20 players online: Steve". A failure exits non-zero,
+  # which the image logs and retries in 5 minutes. Every other mc-monitor
+  # call goes to the real one.
+  rcon_player_count:
+    content: |
+      #!/bin/bash
+      if [[ " $$* " != *" --show-player-count "* ]]; then
+        exec /opt/mc-monitor "$$@"
+      fi
+      out=$$(rcon-cli list) || exit 1
+      if [[ $$out =~ There\ are\ ([0-9]+) ]]; then
+        echo "$${BASH_REMATCH[1]}"
+      else
+        echo "unexpected reply to list: $$out"
+        exit 1
+      fi
 
 # Shared with the other stacks (NPM, Pi-hole, Tandoor already use it), so
 # containers reach each other by name across stacks, e.g. dashboard ->

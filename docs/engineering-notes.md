@@ -519,7 +519,7 @@ without a player count.
 
 Two layers, because the old setup failed with nobody noticing:
 
-- **Local, every 6 hours while the server runs:** `family-minecraft-backup`
+- **Local, every 6 hours while the server is in use:** `family-minecraft-backup`
   and `gtnh-minecraft-backup`
   ([itzg/mc-backup](https://github.com/itzg/docker-mc-backup)) write tar
   files to `/mnt/storage4t/backups/<server>`, keeping the newest 20 (and
@@ -527,7 +527,15 @@ Two layers, because the old setup failed with nobody noticing:
   the root disk is too full to hold them anyway. It pauses saving over RCON during each backup, and it
   doesn't depend on any plugin or server type. It keeps running while the
   server is stopped and waits for RCON. It takes its first backup once the
-  server is up, then one every 6 hours.
+  server is up. GTNH's then backs up every 6 hours. The family server's
+  only backs up again 6 hours after someone has been online: after each
+  backup it asks RCON's `list` every 5 minutes, and once a player shows up
+  it waits 6 hours and backs up. Idle days, running or stopped, add no
+  backups, so the newest 20 reach further back. A visit shorter than 5
+  minutes can slip between checks. The image's own player check is a
+  server-list ping, which the ping hiding blanks out, so the compose file
+  swaps in a small `mc-monitor` script (`rcon_player_count`) that answers
+  it over RCON.
 - **Off-site:** DriveBackupV2 uploads to Google Drive. Update it to 1.8.1
   or newer, and relink with `/drivebackup linkaccount googledrive` if the log
   shows auth errors. Test it with `/drivebackup backup`.
@@ -538,7 +546,13 @@ Check the local layer after any change:
 docker logs family-minecraft-backup --tail 20
 ls -lh /mnt/storage4t/backups/family-minecraft
 docker exec family-minecraft-backup backup now   # one-off backup
+# family server only: the player count it waits on (server must be running)
+docker exec family-minecraft-backup mc-monitor status --show-player-count
 ```
+
+While the family server is stopped, its backup log shows `Error querying
+the server, waiting 5m...` after the last backup. That's expected: RCON is
+down, so it keeps waiting.
 
 To restore, stop the server and use **Restore** on the Minecraft page's
 Backups tab. It extracts the tar next to the server folder, then swaps in
